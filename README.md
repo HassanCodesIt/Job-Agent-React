@@ -26,6 +26,16 @@ npm run dev
 
 Open http://localhost:3000.
 
+## Screenshots
+
+### Dashboard
+
+![Dashboard](https://github.com/user-attachments/assets/78acff2b-072c-4823-949f-db2922371605)
+
+### Setup
+
+![Setup](https://github.com/user-attachments/assets/6dca4a40-92f1-4687-b616-56383c4a6d07)
+
 ## Vercel optimization
 
 - Native Next.js App Router project structure for Vercel
