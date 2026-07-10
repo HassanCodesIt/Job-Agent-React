@@ -66,9 +66,13 @@ export const store = {
     user = {
       fullName: profile.fullName ?? user?.fullName ?? "",
       email: profile.email ?? user?.email ?? "",
+      phone: profile.phone ?? user?.phone ?? "",
       title: profile.title ?? user?.title ?? "",
       skills: profile.skills ?? user?.skills ?? "",
       summary: profile.summary ?? user?.summary ?? "",
+      projects: profile.projects ?? user?.projects ?? "",
+      gmailAddress: profile.gmailAddress ?? user?.gmailAddress ?? "",
+      gmailAppPassword: profile.gmailAppPassword ?? user?.gmailAppPassword ?? "",
       resumeName: profile.resumeName ?? user?.resumeName,
       systemPrompt: profile.systemPrompt ?? user?.systemPrompt,
       groqApiKey: profile.groqApiKey ?? user?.groqApiKey,

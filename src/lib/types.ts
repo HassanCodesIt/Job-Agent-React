@@ -3,9 +3,13 @@ export type ApplicationStatus = "pending" | "drafted" | "sent" | "replied";
 export interface UserProfile {
   fullName: string;
   email: string;
+  phone?: string;
   title: string;
   skills: string;
   summary: string;
+  projects?: string;
+  gmailAddress?: string;
+  gmailAppPassword?: string;
   resumeName?: string;
   systemPrompt?: string;
   groqApiKey?: string;
