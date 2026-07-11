@@ -1,6 +1,7 @@
 "use client";
 
 import { FormEvent, useState, useRef } from "react";
+import { Sparkles, Settings, Mail } from "lucide-react";
 
 export default function SetupPage() {
   const [message, setMessage] = useState("");
@@ -71,24 +72,33 @@ export default function SetupPage() {
   }
 
   return (
-    <section className="space-y-8">
-      <div>
-        <h1 className="text-2xl font-semibold mb-2">First-Time Setup</h1>
-        <p className="text-slate-600 mb-4">Set up your profile manually, or let our AI auto-fill it from your resume.</p>
-        {message && <div className="mb-4 p-3 bg-blue-50 text-blue-800 rounded">{message}</div>}
-      </div>
+    <div className="space-y-8 animate-in fade-in slide-in-from-bottom-4 duration-500">
+      <header className="space-y-2">
+        <h1 className="text-3xl font-bold tracking-tight text-white">Guided Setup</h1>
+        <p className="text-zinc-400 text-base">Configure your AI agent by providing your professional details.</p>
+        {message && (
+          <div className="mt-4 p-3 bg-primary/10 border border-primary/20 text-primary-hover rounded-md text-sm font-medium">
+            {message}
+          </div>
+        )}
+      </header>
 
-      <div className="grid md:grid-cols-2 gap-8">
+      <div className="grid lg:grid-cols-2 gap-8 items-start">
         
         {/* Section A: AI-Assisted Fill */}
-        <div className="bg-white p-6 rounded-lg border shadow-sm">
-          <h2 className="text-lg font-medium mb-4">AI Auto-Fill (Optional)</h2>
-          <p className="text-sm text-slate-600 mb-4">Paste your resume text here and we'll extract your details.</p>
+        <section className="rounded-xl border border-card-border bg-card p-6 shadow-sm">
+          <div className="flex items-center gap-2 mb-4">
+            <Sparkles className="h-5 w-5 text-teal-400" />
+            <h2 className="text-xl font-semibold text-white">AI Auto-Fill</h2>
+          </div>
+          <p className="text-sm text-zinc-400 mb-6 leading-relaxed">
+            Paste your resume text below to let the AI extract and populate your profile.
+          </p>
           
           <textarea 
-            className="w-full rounded border px-3 py-2 mb-4" 
-            rows={8} 
-            placeholder="Paste your full resume text..."
+            className="w-full rounded-md border border-white/10 bg-[#09090B] px-4 py-3 mb-6 text-sm text-white placeholder:text-zinc-500 focus:border-primary/50 focus:outline-none focus:ring-1 focus:ring-primary/50 transition-all resize-none" 
+            rows={14} 
+            placeholder="Paste your resume content here..."
             value={resumeText}
             onChange={(e) => setResumeText(e.target.value)}
           />
@@ -97,95 +107,103 @@ export default function SetupPage() {
             type="button"
             onClick={handleGenerateMetaPrompt}
             disabled={isGenerating}
-            className="w-full rounded bg-blue-600 hover:bg-blue-700 px-4 py-2 text-white disabled:opacity-50 transition-colors"
+            className="w-full flex items-center justify-center gap-2 rounded-full border border-white/10 bg-white/5 hover:bg-white/10 px-4 py-3 text-sm font-medium text-white disabled:opacity-50 transition-all"
           >
+            <Settings className={`h-4 w-4 ${isGenerating ? 'animate-spin' : ''}`} />
             {isGenerating ? "Generating..." : "Generate Meta Prompt"}
           </button>
           
           {extractedData && (
-            <div className="mt-6 p-4 bg-slate-50 border rounded text-sm">
-              <h3 className="font-semibold mb-2 text-slate-700">Extracted Preview:</h3>
-              <pre className="whitespace-pre-wrap text-xs text-slate-600 overflow-x-auto">
-                {JSON.stringify(extractedData, null, 2)}
+            <div className="mt-6 rounded-md border border-white/10 bg-[#09090B] p-4 text-sm font-mono overflow-hidden">
+              <pre className="whitespace-pre-wrap text-xs text-teal-300">
+                {JSON.stringify({ status: "success", extracted_data: extractedData }, null, 2)}
               </pre>
-              <button
-                type="button"
-                onClick={applyToForm}
-                className="mt-4 w-full rounded bg-emerald-600 hover:bg-emerald-700 px-4 py-2 text-white transition-colors"
-              >
-                Apply to Form
-              </button>
             </div>
           )}
-        </div>
+
+          {extractedData && (
+            <button
+              type="button"
+              onClick={applyToForm}
+              className="mt-6 w-full rounded-full bg-gradient-to-r from-blue-600 to-purple-600 hover:from-blue-500 hover:to-purple-500 px-4 py-3 text-sm font-medium text-white transition-all shadow-lg shadow-purple-500/20"
+            >
+              Apply to Form
+            </button>
+          )}
+        </section>
 
         {/* Section B: Profile Form */}
-        <div className="bg-white p-6 rounded-lg border shadow-sm">
-          <h2 className="text-lg font-medium mb-4">Your Profile</h2>
-          <form ref={formRef} onSubmit={saveProfile} className="space-y-4">
+        <section className="rounded-xl border border-card-border bg-card p-6 shadow-sm">
+          <h2 className="text-xl font-semibold text-white mb-6">Your Profile</h2>
+          
+          <form ref={formRef} onSubmit={saveProfile} className="space-y-5">
             
-            <div className="grid gap-4 sm:grid-cols-2">
-              <div className="space-y-1">
-                <label className="text-sm font-medium">Full Name</label>
-                <input name="fullName" required placeholder="John Doe" className="w-full rounded border px-3 py-2" />
+            <div className="grid gap-5 sm:grid-cols-2">
+              <div className="space-y-1.5">
+                <label className="text-xs font-semibold text-white/70 tracking-wide uppercase">Full Name</label>
+                <input name="fullName" required placeholder="Jane Doe" className="w-full rounded-md border border-white/10 bg-[#09090B] px-3 py-2.5 text-sm text-white placeholder:text-zinc-500 focus:border-primary/50 focus:outline-none focus:ring-1 focus:ring-primary/50 transition-all" />
               </div>
-              <div className="space-y-1">
-                <label className="text-sm font-medium">Job Title</label>
-                <input name="title" placeholder="Software Engineer" className="w-full rounded border px-3 py-2" />
-              </div>
-            </div>
-
-            <div className="grid gap-4 sm:grid-cols-2">
-              <div className="space-y-1">
-                <label className="text-sm font-medium">Contact Email</label>
-                <input name="email" type="email" required placeholder="john@example.com" className="w-full rounded border px-3 py-2" />
-              </div>
-              <div className="space-y-1">
-                <label className="text-sm font-medium">Phone Number</label>
-                <input name="phone" placeholder="+1 234 567 890" className="w-full rounded border px-3 py-2" />
+              <div className="space-y-1.5">
+                <label className="text-xs font-semibold text-white/70 tracking-wide uppercase">Job Title</label>
+                <input name="title" placeholder="Senior Frontend Engineer" className="w-full rounded-md border border-white/10 bg-[#09090B] px-3 py-2.5 text-sm text-white placeholder:text-zinc-500 focus:border-primary/50 focus:outline-none focus:ring-1 focus:ring-primary/50 transition-all" />
               </div>
             </div>
 
-            <div className="space-y-1">
-              <label className="text-sm font-medium">Skills</label>
-              <textarea name="skills" placeholder="React, Next.js, TypeScript..." className="w-full rounded border px-3 py-2" rows={2} />
+            <div className="grid gap-5 sm:grid-cols-2">
+              <div className="space-y-1.5">
+                <label className="text-xs font-semibold text-white/70 tracking-wide uppercase">Contact Email</label>
+                <input name="email" type="email" required placeholder="jane@example.com" className="w-full rounded-md border border-white/10 bg-[#09090B] px-3 py-2.5 text-sm text-white placeholder:text-zinc-500 focus:border-primary/50 focus:outline-none focus:ring-1 focus:ring-primary/50 transition-all" />
+              </div>
+              <div className="space-y-1.5">
+                <label className="text-xs font-semibold text-white/70 tracking-wide uppercase">Phone Number</label>
+                <input name="phone" placeholder="+1 (555) 000-0000" className="w-full rounded-md border border-white/10 bg-[#09090B] px-3 py-2.5 text-sm text-white placeholder:text-zinc-500 focus:border-primary/50 focus:outline-none focus:ring-1 focus:ring-primary/50 transition-all" />
+              </div>
             </div>
 
-            <div className="space-y-1">
-              <label className="text-sm font-medium">Summary / Bio</label>
-              <textarea name="summary" placeholder="Experienced developer with..." className="w-full rounded border px-3 py-2" rows={3} />
+            <div className="space-y-1.5">
+              <label className="text-xs font-semibold text-white/70 tracking-wide uppercase">Skills (Comma separated)</label>
+              <textarea name="skills" placeholder="React, TypeScript, Tailwind CSS..." className="w-full rounded-md border border-white/10 bg-[#09090B] px-3 py-2.5 text-sm text-white placeholder:text-zinc-500 focus:border-primary/50 focus:outline-none focus:ring-1 focus:ring-primary/50 transition-all resize-none" rows={3} />
             </div>
 
-            <div className="space-y-1">
-              <label className="text-sm font-medium">Key Projects</label>
-              <textarea name="projects" placeholder="1. Job Agent React: Built a Next.js app..." className="w-full rounded border px-3 py-2" rows={3} />
+            <div className="space-y-1.5">
+              <label className="text-xs font-semibold text-white/70 tracking-wide uppercase">Summary / Bio</label>
+              <textarea name="summary" placeholder="A brief professional summary..." className="w-full rounded-md border border-white/10 bg-[#09090B] px-3 py-2.5 text-sm text-white placeholder:text-zinc-500 focus:border-primary/50 focus:outline-none focus:ring-1 focus:ring-primary/50 transition-all resize-none" rows={4} />
             </div>
 
-            <hr className="my-6 border-slate-200" />
-            
-            <div className="bg-blue-50/50 p-4 rounded-md border border-blue-100">
-              <h3 className="font-medium text-blue-900 mb-1">Email Sending Credentials</h3>
-              <p className="text-xs text-blue-700 mb-4">Required to send emails from your own Gmail account. Not shared with anyone.</p>
+            <div className="space-y-1.5">
+              <label className="text-xs font-semibold text-white/70 tracking-wide uppercase">Key Projects</label>
+              <textarea name="projects" placeholder="Highlight 2-3 major projects..." className="w-full rounded-md border border-white/10 bg-[#09090B] px-3 py-2.5 text-sm text-white placeholder:text-zinc-500 focus:border-primary/50 focus:outline-none focus:ring-1 focus:ring-primary/50 transition-all resize-none" rows={3} />
+            </div>
+
+            <div className="pt-6 pb-2">
+              <div className="h-px w-full bg-white/10 mb-6"></div>
+              <div className="flex items-center gap-2 mb-2">
+                <Mail className="h-5 w-5 text-zinc-300" />
+                <h3 className="text-lg font-semibold text-white">Email Sending Credentials</h3>
+              </div>
+              <p className="text-xs text-zinc-400 mb-5">Required for the agent to send outreach emails on your behalf.</p>
               
-              <div className="grid gap-4 sm:grid-cols-2">
-                <div className="space-y-1">
-                  <label className="text-sm font-medium text-slate-700">Gmail Address</label>
-                  <input name="gmailAddress" type="email" placeholder="you@gmail.com" className="w-full rounded border px-3 py-2" />
+              <div className="grid gap-5 sm:grid-cols-2">
+                <div className="space-y-1.5">
+                  <label className="text-xs font-semibold text-white/70 tracking-wide uppercase">Gmail Address</label>
+                  <input name="gmailAddress" type="email" placeholder="agent@gmail.com" className="w-full rounded-md border border-white/10 bg-[#09090B] px-3 py-2.5 text-sm text-white placeholder:text-zinc-500 focus:border-primary/50 focus:outline-none focus:ring-1 focus:ring-primary/50 transition-all" />
                 </div>
-                <div className="space-y-1">
-                  <label className="text-sm font-medium text-slate-700">App Password</label>
-                  <input name="gmailAppPassword" type="password" placeholder="••••••••••••••••" className="w-full rounded border px-3 py-2" />
+                <div className="space-y-1.5">
+                  <label className="text-xs font-semibold text-white/70 tracking-wide uppercase">App Password</label>
+                  <input name="gmailAppPassword" type="password" placeholder="••••••••••••••••" className="w-full rounded-md border border-white/10 bg-[#09090B] px-3 py-2.5 text-sm text-white placeholder:text-zinc-500 focus:border-primary/50 focus:outline-none focus:ring-1 focus:ring-primary/50 transition-all" />
                 </div>
               </div>
             </div>
 
-            <button type="submit" className="w-full rounded bg-slate-900 hover:bg-slate-800 px-4 py-3 font-medium text-white transition-colors mt-2">
-              Save Profile
-            </button>
+            <div className="pt-4 flex justify-end">
+              <button type="submit" className="w-full sm:w-auto rounded-full bg-gradient-to-r from-blue-600 to-purple-600 hover:from-blue-500 hover:to-purple-500 px-8 py-3 font-semibold text-white transition-all shadow-lg shadow-purple-500/20">
+                Save Profile
+              </button>
+            </div>
           </form>
-        </div>
+        </section>
 
       </div>
-    </section>
+    </div>
   );
 }
