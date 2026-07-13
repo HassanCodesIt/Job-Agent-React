@@ -19,13 +19,16 @@ export async function sendOutreachEmail(draftId: number): Promise<{ success: boo
 
   const contactEmail = app.contactEmail || "hr@example.com";
 
-  // Configure transporter using the user's gmail credentials
-  const transporter = nodemailer.createTransport({
-    service: "gmail",
-    auth: {
-      user: user.gmailAddress,
-      pass: user.gmailAppPassword,
-    },
+    const cleanEmail = user.gmailAddress.trim();
+    const cleanPassword = user.gmailAppPassword.replace(/\s+/g, '');
+
+    // Configure transporter using the user's gmail credentials
+    const transporter = nodemailer.createTransport({
+      service: "gmail",
+      auth: {
+        user: cleanEmail,
+        pass: cleanPassword,
+      },
   });
 
   const mailOptions = {
