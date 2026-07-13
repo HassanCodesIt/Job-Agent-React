@@ -24,6 +24,9 @@ export default function LoginPage() {
       });
       
       if (response.ok) {
+        // Save to localStorage for auto-rehydration
+        localStorage.setItem("jobAgentProfile", JSON.stringify({ fullName: name, email: email }));
+        
         // Redirect to setup since this is a new "mock" session
         router.push("/setup");
       }

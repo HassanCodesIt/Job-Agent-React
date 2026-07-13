@@ -38,11 +38,33 @@ export default function DashboardPage() {
     try {
       const response = await fetch("/api/user");
       if (response.status === 404) {
+        // Attempt auto-rehydration from localStorage
+        const localData = localStorage.getItem("jobAgentProfile");
+        if (localData) {
+          const parsedLocal = JSON.parse(localData);
+          // Silently upload to server to rehydrate memory
+          const rehydrateResponse = await fetch("/api/setup/save", {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify(parsedLocal),
+          });
+          if (rehydrateResponse.ok) {
+            // Rehydration successful, check if they need setup
+            if (!parsedLocal.gmailAppPassword) {
+              router.push("/setup");
+            }
+            return;
+          }
+        }
+        
         router.push("/login");
         return;
       }
       if (response.ok) {
         const user = await response.json();
+        // Keep localStorage fresh
+        localStorage.setItem("jobAgentProfile", JSON.stringify(user));
+        
         if (!user.gmailAppPassword) {
           router.push("/setup");
         }

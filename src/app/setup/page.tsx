@@ -48,11 +48,29 @@ export default function SetupPage() {
       try {
         const response = await fetch("/api/user");
         if (response.status === 404) {
+          // Attempt auto-rehydration from localStorage
+          const localData = localStorage.getItem("jobAgentProfile");
+          if (localData) {
+            const parsedLocal = JSON.parse(localData);
+            // Silently upload to server to rehydrate memory
+            await fetch("/api/setup/save", {
+              method: "POST",
+              headers: { "Content-Type": "application/json" },
+              body: JSON.stringify(parsedLocal),
+            });
+            // Update local state
+            setProfile(prev => ({ ...prev, ...parsedLocal }));
+            return;
+          }
+          
           router.push("/login");
           return;
         }
         if (response.ok) {
           const data = await response.json();
+          // Save to localStorage so it stays fresh
+          localStorage.setItem("jobAgentProfile", JSON.stringify(data));
+          
           setProfile({
             fullName: data.fullName || "",
             title: data.title || "",
@@ -70,7 +88,7 @@ export default function SetupPage() {
       }
     }
     loadUser();
-  }, []);
+  }, [router]);
 
   const metaPromptText = `Extract the following details from my attached resume and return it strictly as a JSON object (no markdown, no backticks, no introduction, only the raw JSON) with these exact keys:
 
@@ -180,6 +198,7 @@ Here is my resume:`;
     });
 
     if (response.ok) {
+      localStorage.setItem("jobAgentProfile", JSON.stringify(profile));
       setToast({ message: "Profile saved successfully! Redirecting...", type: "success" });
       setTimeout(() => {
         router.push("/");
