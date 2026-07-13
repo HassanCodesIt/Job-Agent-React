@@ -2,6 +2,7 @@
 
 import { useEffect, useState } from "react";
 import Link from "next/link";
+import { useRouter } from "next/navigation";
 import { 
   FileText, 
   Send, 
@@ -31,6 +32,23 @@ export default function DashboardPage() {
   const [loading, setLoading] = useState(true);
   const [actionId, setActionId] = useState<number | null>(null);
   const [notification, setNotification] = useState<{ message: string; type: "success" | "error" } | null>(null);
+  const router = useRouter();
+
+  async function checkUserSetup() {
+    try {
+      const response = await fetch("/api/user");
+      if (response.ok) {
+        const user = await response.json();
+        if (!user.gmailAppPassword) {
+          router.push("/setup");
+        }
+      } else {
+        router.push("/setup");
+      }
+    } catch (err) {
+      console.error("Failed to check user:", err);
+    }
+  }
 
   async function fetchData() {
     try {
@@ -47,7 +65,7 @@ export default function DashboardPage() {
   }
 
   useEffect(() => {
-    fetchData();
+    checkUserSetup().then(() => fetchData());
   }, []);
 
   function showNotification(message: string, type: "success" | "error" = "success") {

@@ -110,9 +110,18 @@ export const store = {
   getDraft: (id: number) => drafts.find((draft) => draft.id === id) ?? null,
   deleteDraft: (id: number) => {
     const index = drafts.findIndex((draft) => draft.id === id);
+    if (!index && index < 0) return false; // wait, the original logic is index < 0
     if (index < 0) return false;
     drafts.splice(index, 1);
     return true;
+  },
+  updateDraft: (id: number, payload: { subject?: string; body?: string; cc?: string[] }) => {
+    const draft = drafts.find((item) => item.id === id);
+    if (!draft) return null;
+    if (payload.subject !== undefined) draft.subject = payload.subject;
+    if (payload.body !== undefined) draft.body = payload.body;
+    if (payload.cc !== undefined) draft.cc = payload.cc;
+    return draft;
   },
   regenerateDraft: (id: number, instruction?: string) => {
     const draft = drafts.find((item) => item.id === id);

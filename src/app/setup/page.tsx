@@ -1,15 +1,114 @@
 "use client";
 
-import { FormEvent, useState, useRef } from "react";
-import { Sparkles, Settings, Mail } from "lucide-react";
+import { FormEvent, useState, useEffect, useRef } from "react";
+import { Sparkles, Settings, Mail, Copy, Check, FileText, Upload } from "lucide-react";
 
 export default function SetupPage() {
   const [message, setMessage] = useState("");
   const [isGenerating, setIsGenerating] = useState(false);
   const [resumeText, setResumeText] = useState("");
-  const [extractedData, setExtractedData] = useState<any>(null);
+  const [activeTab, setActiveTab] = useState<"copy-paste" | "auto">("copy-paste");
+  
+  // Custom Meta Prompt Paste parser state
+  const [aiJsonInput, setAiJsonInput] = useState("");
+  const [copied, setCopied] = useState(false);
+
+  // Bind all form values to state so they are pre-populated and editable
+  const [profile, setProfile] = useState({
+    fullName: "",
+    title: "",
+    email: "",
+    phone: "",
+    skills: "",
+    summary: "",
+    projects: "",
+    gmailAddress: "",
+    gmailAppPassword: ""
+  });
 
   const formRef = useRef<HTMLFormElement>(null);
+
+  // Fetch current user details on mount
+  useEffect(() => {
+    async function loadUser() {
+      try {
+        const response = await fetch("/api/user");
+        if (response.ok) {
+          const data = await response.json();
+          setProfile({
+            fullName: data.fullName || "",
+            title: data.title || "",
+            email: data.email || "",
+            phone: data.phone || "",
+            skills: data.skills || "",
+            summary: data.summary || "",
+            projects: data.projects || "",
+            gmailAddress: data.gmailAddress || "",
+            gmailAppPassword: data.gmailAppPassword || ""
+          });
+        }
+      } catch (err) {
+        console.error("Failed to load user profile:", err);
+      }
+    }
+    loadUser();
+  }, []);
+
+  const metaPromptText = `Extract the following details from my attached resume and return it strictly as a JSON object (no markdown, no backticks, no introduction, only the raw JSON) with these exact keys:
+
+{
+  "fullName": "Your full name",
+  "title": "Your job title (e.g. Senior Frontend Engineer)",
+  "email": "Your email address",
+  "phone": "Your phone number",
+  "skills": "Technical skills (comma-separated)",
+  "summary": "Short professional summary/bio",
+  "projects": "Highlight 2-3 key projects you worked on"
+}
+
+Here is my resume:`;
+
+  function copyMetaPrompt() {
+    navigator.clipboard.writeText(metaPromptText);
+    setCopied(true);
+    setTimeout(() => setCopied(false), 2000);
+  }
+
+  function handleAiJsonParse() {
+    if (!aiJsonInput.trim()) {
+      setMessage("Please paste the JSON block from ChatGPT/Claude first.");
+      return;
+    }
+
+    try {
+      // Find JSON block if it was wrapped in backticks or text
+      let cleanedInput = aiJsonInput.trim();
+      const jsonStart = cleanedInput.indexOf("{");
+      const jsonEnd = cleanedInput.lastIndexOf("}");
+      
+      if (jsonStart !== -1 && jsonEnd !== -1) {
+        cleanedInput = cleanedInput.slice(jsonStart, jsonEnd + 1);
+      }
+
+      const parsed = JSON.parse(cleanedInput);
+      
+      setProfile(prev => ({
+        ...prev,
+        fullName: parsed.fullName || prev.fullName,
+        title: parsed.title || prev.title,
+        email: parsed.email || prev.email,
+        phone: parsed.phone || prev.phone,
+        skills: parsed.skills || prev.skills,
+        summary: parsed.summary || prev.summary,
+        projects: parsed.projects || prev.projects,
+      }));
+
+      setMessage("Form auto-filled from pasted JSON! Please review and click 'Save Profile'.");
+      setAiJsonInput("");
+    } catch (err) {
+      setMessage("Failed to parse JSON. Please make sure the pasted text is a valid JSON object.");
+    }
+  }
 
   async function handleGenerateMetaPrompt() {
     if (!resumeText.trim()) {
@@ -18,7 +117,7 @@ export default function SetupPage() {
     }
     
     setIsGenerating(true);
-    setMessage("Extracting profile data from resume...");
+    setMessage("Extracting profile data from resume using server-side LLM...");
     
     try {
       const response = await fetch("/api/setup/meta-prompt", {
@@ -30,45 +129,39 @@ export default function SetupPage() {
       const data = await response.json();
       if (!response.ok) throw new Error(data.error || "Extraction failed");
       
-      setExtractedData(data);
-      setMessage("Profile data extracted successfully. Click 'Apply to Form' to populate fields.");
+      setProfile(prev => ({
+        ...prev,
+        fullName: data.fullName || prev.fullName,
+        title: data.title || prev.title,
+        email: data.email || prev.email,
+        phone: data.phone || prev.phone,
+        skills: data.skills || prev.skills,
+        summary: data.summary || prev.summary,
+        projects: data.projects || prev.projects,
+      }));
+
+      setMessage("Profile details parsed successfully using LLaMA! Please review and click 'Save Profile'.");
     } catch (err: any) {
-      setMessage(err.message || "Failed to extract data");
+      setMessage(err.message || "Failed to extract data. Try the Copy-Paste Meta Prompt tab instead.");
     } finally {
       setIsGenerating(false);
     }
   }
 
-  function applyToForm() {
-    if (!extractedData || !formRef.current) return;
-    
-    const form = formRef.current;
-    
-    const fields = ["fullName", "email", "phone", "title", "skills", "summary", "projects"];
-    fields.forEach(field => {
-      if (extractedData[field]) {
-        const input = form.elements.namedItem(field) as HTMLInputElement | HTMLTextAreaElement;
-        if (input) {
-          input.value = extractedData[field];
-        }
-      }
-    });
-    
-    setMessage("Form auto-filled!");
-  }
+  const handleInputChange = (e: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement>) => {
+    const { name, value } = e.target;
+    setProfile(prev => ({ ...prev, [name]: value }));
+  };
 
   async function saveProfile(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
-    const formData = new FormData(event.currentTarget);
-    const payload = Object.fromEntries(formData.entries());
-
     const response = await fetch("/api/setup/save", {
       method: "POST",
       headers: { "Content-Type": "application/json" },
-      body: JSON.stringify(payload),
+      body: JSON.stringify(profile),
     });
 
-    setMessage(response.ok ? "Profile saved." : "Failed to save profile.");
+    setMessage(response.ok ? "Profile saved successfully." : "Failed to save profile.");
   }
 
   return (
@@ -85,50 +178,99 @@ export default function SetupPage() {
 
       <div className="grid lg:grid-cols-2 gap-8 items-start">
         
-        {/* Section A: AI-Assisted Fill */}
-        <section className="rounded-xl border border-card-border bg-card p-6 shadow-sm">
-          <div className="flex items-center gap-2 mb-4">
+        {/* Section A: AI-Assisted Fill / Meta Prompting */}
+        <section className="rounded-xl border border-card-border bg-card p-6 shadow-sm flex flex-col">
+          <div className="flex items-center gap-2 mb-4 border-b border-card-border pb-4">
             <Sparkles className="h-5 w-5 text-teal-400" />
-            <h2 className="text-xl font-semibold text-white">AI Auto-Fill</h2>
+            <h2 className="text-xl font-semibold text-white">Extract Profile Details</h2>
           </div>
-          <p className="text-sm text-zinc-400 mb-6 leading-relaxed">
-            Paste your resume text below to let the AI extract and populate your profile.
-          </p>
-          
-          <textarea 
-            className="w-full rounded-md border border-white/10 bg-[#09090B] px-4 py-3 mb-6 text-sm text-white placeholder:text-zinc-500 focus:border-primary/50 focus:outline-none focus:ring-1 focus:ring-primary/50 transition-all resize-none" 
-            rows={14} 
-            placeholder="Paste your resume content here..."
-            value={resumeText}
-            onChange={(e) => setResumeText(e.target.value)}
-          />
-          
-          <button 
-            type="button"
-            onClick={handleGenerateMetaPrompt}
-            disabled={isGenerating}
-            className="w-full flex items-center justify-center gap-2 rounded-full border border-white/10 bg-white/5 hover:bg-white/10 px-4 py-3 text-sm font-medium text-white disabled:opacity-50 transition-all"
-          >
-            <Settings className={`h-4 w-4 ${isGenerating ? 'animate-spin' : ''}`} />
-            {isGenerating ? "Generating..." : "Generate Meta Prompt"}
-          </button>
-          
-          {extractedData && (
-            <div className="mt-6 rounded-md border border-white/10 bg-[#09090B] p-4 text-sm font-mono overflow-hidden">
-              <pre className="whitespace-pre-wrap text-xs text-teal-300">
-                {JSON.stringify({ status: "success", extracted_data: extractedData }, null, 2)}
-              </pre>
-            </div>
-          )}
 
-          {extractedData && (
+          {/* Tab Selector */}
+          <div className="flex bg-[#09090B] rounded-lg p-1 gap-1 mb-6 border border-white/5">
             <button
-              type="button"
-              onClick={applyToForm}
-              className="mt-6 w-full rounded-full bg-gradient-to-r from-blue-600 to-purple-600 hover:from-blue-500 hover:to-purple-500 px-4 py-3 text-sm font-medium text-white transition-all shadow-lg shadow-purple-500/20"
+              onClick={() => setActiveTab("copy-paste")}
+              className={`flex-1 py-2 px-3 text-xs font-semibold rounded-md transition-all cursor-pointer ${
+                activeTab === "copy-paste"
+                  ? "bg-white/10 text-white shadow-sm"
+                  : "text-zinc-400 hover:text-white"
+              }`}
             >
-              Apply to Form
+              Copy-Paste Meta Prompt
             </button>
+            <button
+              onClick={() => setActiveTab("auto")}
+              className={`flex-1 py-2 px-3 text-xs font-semibold rounded-md transition-all cursor-pointer ${
+                activeTab === "auto"
+                  ? "bg-white/10 text-white shadow-sm"
+                  : "text-zinc-400 hover:text-white"
+              }`}
+            >
+              Direct AI Parse (Groq)
+            </button>
+          </div>
+
+          {activeTab === "copy-paste" ? (
+            <div className="space-y-6">
+              <div className="space-y-2">
+                <h3 className="text-sm font-semibold text-white">Step 1: Copy Prompt & Run on ChatGPT / Claude</h3>
+                <p className="text-xs text-zinc-400 leading-relaxed">
+                  Click below to copy the prompt instructions, paste it into ChatGPT, Claude, or Gemini alongside your resume, and copy the JSON block returned.
+                </p>
+                <div className="relative rounded-lg border border-white/10 bg-[#09090B] p-4 font-mono text-xs text-zinc-300 mt-2 max-h-44 overflow-y-auto">
+                  <pre className="whitespace-pre-wrap">{metaPromptText}</pre>
+                  <button
+                    onClick={copyMetaPrompt}
+                    className="absolute top-2 right-2 p-2 rounded-md bg-white/5 border border-white/10 hover:bg-white/10 transition-colors text-white cursor-pointer"
+                    title="Copy Prompt"
+                  >
+                    {copied ? <Check className="h-4 w-4 text-teal-400" /> : <Copy className="h-4 w-4" />}
+                  </button>
+                </div>
+              </div>
+
+              <div className="space-y-3 pt-2">
+                <h3 className="text-sm font-semibold text-white">Step 2: Paste LLM Response</h3>
+                <textarea
+                  className="w-full rounded-md border border-white/10 bg-[#09090B] px-4 py-3 text-sm text-white placeholder:text-zinc-500 focus:border-primary/50 focus:outline-none focus:ring-1 focus:ring-primary/50 transition-all resize-none"
+                  rows={6}
+                  placeholder="Paste the extracted JSON block here..."
+                  value={aiJsonInput}
+                  onChange={(e) => setAiJsonInput(e.target.value)}
+                />
+                <button
+                  type="button"
+                  onClick={handleAiJsonParse}
+                  className="w-full flex items-center justify-center gap-2 rounded-full bg-gradient-to-r from-blue-600 to-purple-600 hover:from-blue-500 hover:to-purple-500 px-4 py-3 text-sm font-semibold text-white transition-all shadow-lg shadow-purple-500/20 cursor-pointer"
+                >
+                  <Upload className="h-4 w-4" />
+                  <span>Parse & Auto-Fill Profile</span>
+                </button>
+              </div>
+            </div>
+          ) : (
+            <div className="space-y-6">
+              <p className="text-xs text-zinc-400 leading-relaxed">
+                Paste your raw resume text directly here, and our server will call the Groq model (Llama-3) to extract details directly. Requires <code>GROQ_API_KEY</code> on server.
+              </p>
+              
+              <textarea 
+                className="w-full rounded-md border border-white/10 bg-[#09090B] px-4 py-3 text-sm text-white placeholder:text-zinc-500 focus:border-primary/50 focus:outline-none focus:ring-1 focus:ring-primary/50 transition-all resize-none" 
+                rows={11} 
+                placeholder="Paste your raw resume content here..."
+                value={resumeText}
+                onChange={(e) => setResumeText(e.target.value)}
+              />
+              
+              <button 
+                type="button"
+                onClick={handleGenerateMetaPrompt}
+                disabled={isGenerating}
+                className="w-full flex items-center justify-center gap-2 rounded-full border border-white/10 bg-white/5 hover:bg-white/10 px-4 py-3 text-sm font-medium text-white disabled:opacity-50 transition-all cursor-pointer"
+              >
+                <Settings className={`h-4 w-4 ${isGenerating ? 'animate-spin' : ''}`} />
+                {isGenerating ? "Generating..." : "Direct Auto-Fill"}
+              </button>
+            </div>
           )}
         </section>
 
@@ -141,38 +283,38 @@ export default function SetupPage() {
             <div className="grid gap-5 sm:grid-cols-2">
               <div className="space-y-1.5">
                 <label className="text-xs font-semibold text-white/70 tracking-wide uppercase">Full Name</label>
-                <input name="fullName" required placeholder="Jane Doe" className="w-full rounded-md border border-white/10 bg-[#09090B] px-3 py-2.5 text-sm text-white placeholder:text-zinc-500 focus:border-primary/50 focus:outline-none focus:ring-1 focus:ring-primary/50 transition-all" />
+                <input name="fullName" required placeholder="Jane Doe" value={profile.fullName} onChange={handleInputChange} className="w-full rounded-md border border-white/10 bg-[#09090B] px-3 py-2.5 text-sm text-white placeholder:text-zinc-500 focus:border-primary/50 focus:outline-none focus:ring-1 focus:ring-primary/50 transition-all" />
               </div>
               <div className="space-y-1.5">
                 <label className="text-xs font-semibold text-white/70 tracking-wide uppercase">Job Title</label>
-                <input name="title" placeholder="Senior Frontend Engineer" className="w-full rounded-md border border-white/10 bg-[#09090B] px-3 py-2.5 text-sm text-white placeholder:text-zinc-500 focus:border-primary/50 focus:outline-none focus:ring-1 focus:ring-primary/50 transition-all" />
+                <input name="title" placeholder="Senior Frontend Engineer" value={profile.title} onChange={handleInputChange} className="w-full rounded-md border border-white/10 bg-[#09090B] px-3 py-2.5 text-sm text-white placeholder:text-zinc-500 focus:border-primary/50 focus:outline-none focus:ring-1 focus:ring-primary/50 transition-all" />
               </div>
             </div>
 
             <div className="grid gap-5 sm:grid-cols-2">
               <div className="space-y-1.5">
                 <label className="text-xs font-semibold text-white/70 tracking-wide uppercase">Contact Email</label>
-                <input name="email" type="email" required placeholder="jane@example.com" className="w-full rounded-md border border-white/10 bg-[#09090B] px-3 py-2.5 text-sm text-white placeholder:text-zinc-500 focus:border-primary/50 focus:outline-none focus:ring-1 focus:ring-primary/50 transition-all" />
+                <input name="email" type="email" required placeholder="jane@example.com" value={profile.email} onChange={handleInputChange} className="w-full rounded-md border border-white/10 bg-[#09090B] px-3 py-2.5 text-sm text-white placeholder:text-zinc-500 focus:border-primary/50 focus:outline-none focus:ring-1 focus:ring-primary/50 transition-all" />
               </div>
               <div className="space-y-1.5">
                 <label className="text-xs font-semibold text-white/70 tracking-wide uppercase">Phone Number</label>
-                <input name="phone" placeholder="+1 (555) 000-0000" className="w-full rounded-md border border-white/10 bg-[#09090B] px-3 py-2.5 text-sm text-white placeholder:text-zinc-500 focus:border-primary/50 focus:outline-none focus:ring-1 focus:ring-primary/50 transition-all" />
+                <input name="phone" placeholder="+1 (555) 000-0000" value={profile.phone} onChange={handleInputChange} className="w-full rounded-md border border-white/10 bg-[#09090B] px-3 py-2.5 text-sm text-white placeholder:text-zinc-500 focus:border-primary/50 focus:outline-none focus:ring-1 focus:ring-primary/50 transition-all" />
               </div>
             </div>
 
             <div className="space-y-1.5">
               <label className="text-xs font-semibold text-white/70 tracking-wide uppercase">Skills (Comma separated)</label>
-              <textarea name="skills" placeholder="React, TypeScript, Tailwind CSS..." className="w-full rounded-md border border-white/10 bg-[#09090B] px-3 py-2.5 text-sm text-white placeholder:text-zinc-500 focus:border-primary/50 focus:outline-none focus:ring-1 focus:ring-primary/50 transition-all resize-none" rows={3} />
+              <textarea name="skills" placeholder="React, TypeScript, Tailwind CSS..." value={profile.skills} onChange={handleInputChange} className="w-full rounded-md border border-white/10 bg-[#09090B] px-3 py-2.5 text-sm text-white placeholder:text-zinc-500 focus:border-primary/50 focus:outline-none focus:ring-1 focus:ring-primary/50 transition-all resize-none animate-none" rows={3} />
             </div>
 
             <div className="space-y-1.5">
               <label className="text-xs font-semibold text-white/70 tracking-wide uppercase">Summary / Bio</label>
-              <textarea name="summary" placeholder="A brief professional summary..." className="w-full rounded-md border border-white/10 bg-[#09090B] px-3 py-2.5 text-sm text-white placeholder:text-zinc-500 focus:border-primary/50 focus:outline-none focus:ring-1 focus:ring-primary/50 transition-all resize-none" rows={4} />
+              <textarea name="summary" placeholder="A brief professional summary..." value={profile.summary} onChange={handleInputChange} className="w-full rounded-md border border-white/10 bg-[#09090B] px-3 py-2.5 text-sm text-white placeholder:text-zinc-500 focus:border-primary/50 focus:outline-none focus:ring-1 focus:ring-primary/50 transition-all resize-none animate-none" rows={4} />
             </div>
 
             <div className="space-y-1.5">
               <label className="text-xs font-semibold text-white/70 tracking-wide uppercase">Key Projects</label>
-              <textarea name="projects" placeholder="Highlight 2-3 major projects..." className="w-full rounded-md border border-white/10 bg-[#09090B] px-3 py-2.5 text-sm text-white placeholder:text-zinc-500 focus:border-primary/50 focus:outline-none focus:ring-1 focus:ring-primary/50 transition-all resize-none" rows={3} />
+              <textarea name="projects" placeholder="Highlight 2-3 major projects..." value={profile.projects} onChange={handleInputChange} className="w-full rounded-md border border-white/10 bg-[#09090B] px-3 py-2.5 text-sm text-white placeholder:text-zinc-500 focus:border-primary/50 focus:outline-none focus:ring-1 focus:ring-primary/50 transition-all resize-none animate-none" rows={3} />
             </div>
 
             <div className="pt-6 pb-2">
@@ -186,17 +328,17 @@ export default function SetupPage() {
               <div className="grid gap-5 sm:grid-cols-2">
                 <div className="space-y-1.5">
                   <label className="text-xs font-semibold text-white/70 tracking-wide uppercase">Gmail Address</label>
-                  <input name="gmailAddress" type="email" placeholder="agent@gmail.com" className="w-full rounded-md border border-white/10 bg-[#09090B] px-3 py-2.5 text-sm text-white placeholder:text-zinc-500 focus:border-primary/50 focus:outline-none focus:ring-1 focus:ring-primary/50 transition-all" />
+                  <input name="gmailAddress" type="email" placeholder="agent@gmail.com" value={profile.gmailAddress} onChange={handleInputChange} className="w-full rounded-md border border-white/10 bg-[#09090B] px-3 py-2.5 text-sm text-white placeholder:text-zinc-500 focus:border-primary/50 focus:outline-none focus:ring-1 focus:ring-primary/50 transition-all" />
                 </div>
                 <div className="space-y-1.5">
                   <label className="text-xs font-semibold text-white/70 tracking-wide uppercase">App Password</label>
-                  <input name="gmailAppPassword" type="password" placeholder="••••••••••••••••" className="w-full rounded-md border border-white/10 bg-[#09090B] px-3 py-2.5 text-sm text-white placeholder:text-zinc-500 focus:border-primary/50 focus:outline-none focus:ring-1 focus:ring-primary/50 transition-all" />
+                  <input name="gmailAppPassword" type="password" placeholder="••••••••••••••••" value={profile.gmailAppPassword} onChange={handleInputChange} className="w-full rounded-md border border-white/10 bg-[#09090B] px-3 py-2.5 text-sm text-white placeholder:text-zinc-500 focus:border-primary/50 focus:outline-none focus:ring-1 focus:ring-primary/50 transition-all" />
                 </div>
               </div>
             </div>
 
             <div className="pt-4 flex justify-end">
-              <button type="submit" className="w-full sm:w-auto rounded-full bg-gradient-to-r from-blue-600 to-purple-600 hover:from-blue-500 hover:to-purple-500 px-8 py-3 font-semibold text-white transition-all shadow-lg shadow-purple-500/20">
+              <button type="submit" className="w-full sm:w-auto rounded-full bg-gradient-to-r from-blue-600 to-purple-600 hover:from-blue-500 hover:to-purple-500 px-8 py-3 font-semibold text-white transition-all shadow-lg shadow-purple-500/20 cursor-pointer">
                 Save Profile
               </button>
             </div>
