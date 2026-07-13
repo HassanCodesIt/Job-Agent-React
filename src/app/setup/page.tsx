@@ -4,6 +4,17 @@ import { FormEvent, useState, useEffect, useRef } from "react";
 import { useRouter } from "next/navigation";
 import { Sparkles, Settings, Mail, Copy, Check, FileText, Upload } from "lucide-react";
 
+function sanitizeEmail(text: string | undefined): string {
+  if (!text) return "";
+  const match = text.match(/([a-zA-Z0-9._-]+@[a-zA-Z0-9._-]+\.[a-zA-Z0-9._-]+)/i);
+  return match ? match[1] : text;
+}
+
+function sanitizePhone(text: string | undefined): string {
+  if (!text) return "";
+  return text.replace(/[^\d\+\-\(\)\s]/g, '').trim();
+}
+
 export default function SetupPage() {
   const [message, setMessage] = useState("");
   const [isGenerating, setIsGenerating] = useState(false);
@@ -13,6 +24,7 @@ export default function SetupPage() {
   // Custom Meta Prompt Paste parser state
   const [aiJsonInput, setAiJsonInput] = useState("");
   const [copied, setCopied] = useState(false);
+  const [toast, setToast] = useState<{message: string, type: "success" | "error"} | null>(null);
 
   // Bind all form values to state so they are pre-populated and editable
   const [profile, setProfile] = useState({
@@ -102,8 +114,8 @@ Here is my resume:`;
         ...prev,
         fullName: parsed.fullName || prev.fullName,
         title: parsed.title || prev.title,
-        email: parsed.email || prev.email,
-        phone: parsed.phone || prev.phone,
+        email: sanitizeEmail(parsed.email) || prev.email,
+        phone: sanitizePhone(parsed.phone) || prev.phone,
         skills: parsed.skills || prev.skills,
         summary: parsed.summary || prev.summary,
         projects: parsed.projects || prev.projects,
@@ -139,8 +151,8 @@ Here is my resume:`;
         ...prev,
         fullName: data.fullName || prev.fullName,
         title: data.title || prev.title,
-        email: data.email || prev.email,
-        phone: data.phone || prev.phone,
+        email: sanitizeEmail(data.email) || prev.email,
+        phone: sanitizePhone(data.phone) || prev.phone,
         skills: data.skills || prev.skills,
         summary: data.summary || prev.summary,
         projects: data.projects || prev.projects,
@@ -167,15 +179,35 @@ Here is my resume:`;
       body: JSON.stringify(profile),
     });
 
-    setMessage(response.ok ? "Profile saved successfully." : "Failed to save profile.");
+    if (response.ok) {
+      setToast({ message: "Profile saved successfully! Redirecting...", type: "success" });
+      setTimeout(() => {
+        router.push("/");
+      }, 1500);
+    } else {
+      setToast({ message: "Failed to save profile.", type: "error" });
+      setTimeout(() => setToast(null), 3000);
+    }
   }
 
   return (
-    <div className="space-y-8 animate-in fade-in slide-in-from-bottom-4 duration-500">
+    <div className="space-y-8 animate-in fade-in slide-in-from-bottom-4 duration-500 relative">
+      {/* Floating Toast Notification */}
+      {toast && (
+        <div className={`fixed bottom-8 left-1/2 -translate-x-1/2 z-50 px-6 py-3 rounded-full flex items-center gap-3 shadow-2xl animate-in slide-in-from-bottom-5 fade-in duration-300 ${
+          toast.type === "success" 
+            ? "bg-teal-500 text-black font-semibold" 
+            : "bg-red-500 text-white font-semibold"
+        }`}>
+          {toast.type === "success" ? <Check className="h-5 w-5" /> : <Settings className="h-5 w-5" />}
+          <span>{toast.message}</span>
+        </div>
+      )}
+
       <header className="space-y-2">
         <h1 className="text-3xl font-bold tracking-tight text-white">Guided Setup</h1>
         <p className="text-zinc-400 text-base">Configure your AI agent by providing your professional details.</p>
-        {message && (
+        {message && !toast && (
           <div className="mt-4 p-3 bg-primary/10 border border-primary/20 text-primary-hover rounded-md text-sm font-medium">
             {message}
           </div>
