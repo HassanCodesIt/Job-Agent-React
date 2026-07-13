@@ -1,6 +1,7 @@
 "use client";
 
 import { FormEvent, useState, useEffect, useRef } from "react";
+import { useRouter } from "next/navigation";
 import { Sparkles, Settings, Mail, Copy, Check, FileText, Upload } from "lucide-react";
 
 export default function SetupPage() {
@@ -27,12 +28,17 @@ export default function SetupPage() {
   });
 
   const formRef = useRef<HTMLFormElement>(null);
+  const router = useRouter();
 
   // Fetch current user details on mount
   useEffect(() => {
     async function loadUser() {
       try {
         const response = await fetch("/api/user");
+        if (response.status === 404) {
+          router.push("/login");
+          return;
+        }
         if (response.ok) {
           const data = await response.json();
           setProfile({

@@ -44,6 +44,8 @@ export function Nav() {
     }
   }
 
+  if (pathname === "/login") return null;
+
   return (
     <nav className="sticky top-0 z-50 w-full border-b border-white/5 bg-[#09090B]/80 backdrop-blur-md">
       <div className="flex h-16 items-center px-4 sm:px-8 justify-between">

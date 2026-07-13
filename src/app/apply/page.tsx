@@ -48,6 +48,10 @@ export default function ApplyPage() {
     async function checkUserSetup() {
       try {
         const response = await fetch("/api/user");
+        if (response.status === 404) {
+          router.push("/login");
+          return;
+        }
         if (response.ok) {
           const user = await response.json();
           if (!user.gmailAppPassword) {
