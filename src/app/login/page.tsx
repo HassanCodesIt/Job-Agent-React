@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { useRouter } from "next/navigation";
 import { Sparkles, Loader2, ArrowRight, User, Mail } from "lucide-react";
 
@@ -10,6 +10,14 @@ export default function LoginPage() {
   const [loading, setLoading] = useState(false);
   const [isLogin, setIsLogin] = useState(false); // Toggle between Login and Sign Up text
   const router = useRouter();
+
+  // Persistent Authentication Check
+  useEffect(() => {
+    const localData = localStorage.getItem("jobAgentProfile");
+    if (localData) {
+      router.push("/");
+    }
+  }, [router]);
 
   async function handleAuth(e: React.FormEvent) {
     e.preventDefault();

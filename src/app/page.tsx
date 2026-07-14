@@ -32,6 +32,7 @@ export default function DashboardPage() {
   const [loading, setLoading] = useState(true);
   const [actionId, setActionId] = useState<number | null>(null);
   const [notification, setNotification] = useState<{ message: string; type: "success" | "error" } | null>(null);
+  const [showSuccessModal, setShowSuccessModal] = useState(false);
   const router = useRouter();
 
   async function checkUserSetup() {
@@ -106,7 +107,7 @@ export default function DashboardPage() {
         method: "POST"
       });
       if (response.ok) {
-        showNotification("Application email draft sent successfully!");
+        setShowSuccessModal(true);
         fetchData();
       } else {
         showNotification("Failed to send application email.", "error");
@@ -346,6 +347,26 @@ export default function DashboardPage() {
         )}
       </section>
 
+      {/* Success Modal */}
+      {showSuccessModal && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 backdrop-blur-sm p-4">
+          <div className="bg-card border border-card-border rounded-2xl p-8 max-w-md w-full shadow-2xl flex flex-col items-center text-center animate-in zoom-in-95 duration-300">
+            <div className="h-16 w-16 bg-teal-500/10 text-teal-400 rounded-full flex items-center justify-center mb-6">
+              <CheckCircle className="h-8 w-8" />
+            </div>
+            <h3 className="text-2xl font-bold text-white mb-2">Application Sent!</h3>
+            <p className="text-zinc-400 mb-8">
+              Your email outreach has been successfully sent to the hiring team.
+            </p>
+            <button
+              onClick={() => setShowSuccessModal(false)}
+              className="w-full rounded-full bg-white/10 hover:bg-white/20 text-white font-semibold py-3 transition-colors cursor-pointer"
+            >
+              OK
+            </button>
+          </div>
+        </div>
+      )}
     </div>
   );
 }
