@@ -36,7 +36,9 @@ export default function SetupPage() {
     summary: "",
     projects: "",
     gmailAddress: "",
-    gmailAppPassword: ""
+    gmailAppPassword: "",
+    resumeFilename: "",
+    resumeBase64: ""
   });
 
   const formRef = useRef<HTMLFormElement>(null);
@@ -80,7 +82,9 @@ export default function SetupPage() {
             summary: data.summary || "",
             projects: data.projects || "",
             gmailAddress: data.gmailAddress || "",
-            gmailAppPassword: data.gmailAppPassword || ""
+            gmailAppPassword: data.gmailAppPassword || "",
+            resumeFilename: data.resumeFilename || "",
+            resumeBase64: data.resumeBase64 || ""
           });
         }
       } catch (err) {
@@ -187,6 +191,31 @@ Here is my resume:`;
   const handleInputChange = (e: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement>) => {
     const { name, value } = e.target;
     setProfile(prev => ({ ...prev, [name]: value }));
+  };
+
+  const handleFileUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+    
+    if (file.size > 2 * 1024 * 1024) {
+      setMessage("Resume file is too large. Please upload a PDF under 2MB.");
+      return;
+    }
+
+    const reader = new FileReader();
+    reader.onload = (event) => {
+      const base64 = event.target?.result as string;
+      setProfile(prev => ({ 
+        ...prev, 
+        resumeFilename: file.name,
+        resumeBase64: base64
+      }));
+      setMessage("Resume file attached successfully!");
+    };
+    reader.onerror = () => {
+      setMessage("Failed to read the file.");
+    };
+    reader.readAsDataURL(file);
   };
 
   async function saveProfile(event: FormEvent<HTMLFormElement>) {
@@ -372,6 +401,29 @@ Here is my resume:`;
             <div className="space-y-1.5">
               <label className="text-xs font-semibold text-white/70 tracking-wide uppercase">Key Projects</label>
               <textarea name="projects" placeholder="Highlight 2-3 major projects..." value={profile.projects} onChange={handleInputChange} className="w-full rounded-md border border-white/10 bg-[#09090B] px-3 py-2.5 text-sm text-white placeholder:text-zinc-500 focus:border-primary/50 focus:outline-none focus:ring-1 focus:ring-primary/50 transition-all resize-none animate-none" rows={3} />
+            </div>
+
+            <div className="pt-6 pb-2">
+              <div className="h-px w-full bg-white/10 mb-6"></div>
+              <div className="flex items-center gap-2 mb-2">
+                <FileText className="h-5 w-5 text-zinc-300" />
+                <h3 className="text-lg font-semibold text-white">Attach Your Resume (PDF)</h3>
+              </div>
+              <p className="text-xs text-zinc-400 mb-5">This file will be automatically attached to your outreach emails.</p>
+              
+              <div className="flex items-center gap-4">
+                <input 
+                  type="file" 
+                  accept=".pdf" 
+                  onChange={handleFileUpload}
+                  className="block w-full text-sm text-zinc-400 file:mr-4 file:py-2 file:px-4 file:rounded-full file:border-0 file:text-sm file:font-semibold file:bg-primary/20 file:text-primary-hover hover:file:bg-primary/30 cursor-pointer"
+                />
+                {profile.resumeFilename && (
+                  <span className="text-xs font-medium text-teal-400 shrink-0 flex items-center gap-1">
+                    <Check className="h-3 w-3" /> {profile.resumeFilename}
+                  </span>
+                )}
+              </div>
             </div>
 
             <div className="pt-6 pb-2">

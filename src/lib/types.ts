@@ -10,7 +10,8 @@ export interface UserProfile {
   projects?: string;
   gmailAddress?: string;
   gmailAppPassword?: string;
-  resumeName?: string;
+  resumeFilename?: string;
+  resumeBase64?: string;
   systemPrompt?: string;
   groqApiKey?: string;
   hfToken?: string;

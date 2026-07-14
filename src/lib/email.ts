@@ -31,13 +31,22 @@ export async function sendOutreachEmail(draftId: number): Promise<{ success: boo
       },
   });
 
-  const mailOptions = {
+  const mailOptions: any = {
     from: `"${user.fullName || 'Job Applicant'}" <${user.gmailAddress}>`,
     to: contactEmail,
     cc: draft.cc || [],
     subject: draft.subject || `Application for ${app.role}`,
     text: draft.body,
   };
+
+  if (user.resumeBase64 && user.resumeFilename) {
+    mailOptions.attachments = [
+      {
+        filename: user.resumeFilename,
+        path: user.resumeBase64
+      }
+    ];
+  }
 
   try {
     const info = await transporter.sendMail(mailOptions);

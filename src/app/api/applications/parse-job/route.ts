@@ -34,6 +34,7 @@ export async function POST(request: NextRequest) {
 We have the following candidate profile details:
 - Full Name: ${user.fullName}
 - Email: ${user.email}
+- Phone: ${user.phone || ''}
 - Title: ${user.title}
 - Skills: ${user.skills}
 - Summary: ${user.summary}
@@ -45,6 +46,18 @@ Analyze the provided job description and:
 3. Extract the "contactEmail" or recruiter email (default: "hr@example.com").
 4. Write a tailored, persuasive email outreach draft from the candidate to the hiring team.
 ${oneTimeInstructions ? `Incorporate these specific instructions: "${oneTimeInstructions}"` : ""}
+
+CRITICAL FORMATTING RULES FOR THE EMAIL BODY:
+The emailBody MUST follow this exact structure:
+- Salutation: "Dear Hiring Manager,"
+- Paragraph 1: Express your excitement and interest in the specific role and company.
+- Paragraph 2: Summarize your relevant experience, technical skills, and key projects that make you a great fit.
+- Paragraph 3: Highlight your alignment with the company's goals, culture, or focus on innovation.
+- Sign-off: MUST be exactly this format:
+Best regards,
+${user.fullName}
+${user.phone || ''}
+${user.email}
 
 You MUST return strictly a JSON object with these exact keys:
 - company (string)
