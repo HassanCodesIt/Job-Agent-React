@@ -9,7 +9,7 @@ export interface UserProfile {
   summary: string;
   projects?: string;
   gmailAddress?: string;
-  gmailAppPassword?: string;
+  gmailRefreshToken?: string;
   resumeFilename?: string;
   resumeBase64?: string;
   systemPrompt?: string;

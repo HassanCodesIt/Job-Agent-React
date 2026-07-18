@@ -72,7 +72,7 @@ export const store = {
       summary: profile.summary ?? user?.summary ?? "",
       projects: profile.projects ?? user?.projects ?? "",
       gmailAddress: profile.gmailAddress ?? user?.gmailAddress ?? "",
-      gmailAppPassword: profile.gmailAppPassword ?? user?.gmailAppPassword ?? "",
+      gmailRefreshToken: profile.gmailRefreshToken ?? user?.gmailRefreshToken ?? "",
       resumeFilename: profile.resumeFilename ?? user?.resumeFilename ?? "",
       resumeBase64: profile.resumeBase64 ?? user?.resumeBase64 ?? "",
       systemPrompt: profile.systemPrompt ?? user?.systemPrompt,

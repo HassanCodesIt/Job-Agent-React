@@ -13,22 +13,23 @@ export async function sendOutreachEmail(draftId: number): Promise<{ success: boo
   }
 
   const user = store.getUser();
-  if (!user || !user.gmailAddress || !user.gmailAppPassword) {
-    throw new Error("Gmail Address and App Password are not configured. Please complete first-time Setup.");
+  if (!user || !user.gmailRefreshToken) {
+    throw new Error("Gmail Account is not connected. Please complete first-time Setup.");
   }
 
   const contactEmail = app.contactEmail || "hr@example.com";
+  const cleanEmail = user.gmailAddress?.trim() || "";
 
-    const cleanEmail = user.gmailAddress.trim();
-    const cleanPassword = user.gmailAppPassword.replace(/\s+/g, '');
-
-    // Configure transporter using the user's gmail credentials
-    const transporter = nodemailer.createTransport({
-      service: "gmail",
-      auth: {
-        user: cleanEmail,
-        pass: cleanPassword,
-      },
+  // Configure transporter using OAuth2
+  const transporter = nodemailer.createTransport({
+    service: "gmail",
+    auth: {
+      type: "OAuth2",
+      user: cleanEmail,
+      clientId: process.env.GOOGLE_CLIENT_ID,
+      clientSecret: process.env.GOOGLE_CLIENT_SECRET,
+      refreshToken: user.gmailRefreshToken,
+    },
   });
 
   const mailOptions: any = {
