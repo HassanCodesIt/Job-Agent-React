@@ -2,7 +2,7 @@
 
 import Link from "next/link";
 import { usePathname } from "next/navigation";
-import { Send, Archive, BarChart2, LifeBuoy } from "lucide-react";
+import { LayoutDashboard, Settings, FileText, MessageSquare, Megaphone, LogOut } from "lucide-react";
 import { clsx, type ClassValue } from "clsx";
 import { twMerge } from "tailwind-merge";
 
@@ -11,10 +11,11 @@ function cn(...inputs: ClassValue[]) {
 }
 
 const sideLinks = [
-  { label: "Sent", href: "/sent", icon: Send },
-  { label: "Archive", href: "/archive", icon: Archive },
-  { label: "Analytics", href: "/analytics", icon: BarChart2 },
-  { label: "Support", href: "/support", icon: LifeBuoy },
+  { label: "Dashboard", href: "/", icon: LayoutDashboard },
+  { label: "Setup", href: "/setup", icon: Settings },
+  { label: "Drafts", href: "/drafts", icon: FileText },
+  { label: "Replies", href: "/replies", icon: MessageSquare },
+  { label: "Campaigns", href: "/outreach", icon: Megaphone },
 ];
 
 export function Sidebar() {
@@ -22,26 +23,20 @@ export function Sidebar() {
 
   return (
     <aside className="w-64 border-r border-white/5 bg-[#09090B] flex flex-col h-[calc(100vh-4rem)] sticky top-16 hidden md:flex">
-      {/* Profile Section */}
+      {/* Brand Section */}
       <div className="p-6 border-b border-white/5">
-        <div className="flex items-center gap-3">
-          <div className="h-10 w-10 rounded bg-gradient-to-br from-teal-400 to-blue-500 p-0.5">
-            <div className="h-full w-full bg-[#09090B] rounded-[2px] flex items-center justify-center">
-               <span className="text-teal-400 font-bold text-xs">AA</span>
-            </div>
+        <Link href="/" className="flex items-center gap-2">
+          <div className="h-8 w-8 rounded bg-gradient-to-br from-emerald-400 to-teal-600 flex items-center justify-center shadow-[0_0_15px_rgba(16,185,129,0.3)]">
+            <span className="text-white font-bold text-lg">J</span>
           </div>
-          <div>
-            <h3 className="text-sm font-semibold text-white">Agent Alpha</h3>
-            <div className="flex items-center gap-1.5 mt-0.5">
-              <span className="h-1.5 w-1.5 rounded-full bg-teal-400 shadow-[0_0_8px_rgba(45,212,191,0.8)]"></span>
-              <span className="text-xs text-teal-400 font-medium">Status: Active</span>
-            </div>
-          </div>
-        </div>
+          <span className="text-xl font-bold tracking-tight text-white">
+            Job Agent <span className="text-emerald-400">AI</span>
+          </span>
+        </Link>
       </div>
 
       {/* Nav Links */}
-      <div className="flex-1 py-6 px-4 space-y-1">
+      <div className="flex-1 py-6 px-4 space-y-2">
         {sideLinks.map((link) => {
           const isActive = pathname === link.href;
           const Icon = link.icon;
@@ -50,24 +45,33 @@ export function Sidebar() {
               key={link.href}
               href={link.href}
               className={cn(
-                "flex items-center gap-3 px-3 py-2.5 rounded-md text-sm font-medium transition-colors group",
+                "flex items-center gap-3 px-3 py-2.5 rounded-md text-sm font-medium transition-all group",
                 isActive 
-                  ? "text-white bg-white/5" 
+                  ? "text-emerald-400 bg-emerald-500/10 glow-border" 
                   : "text-white/60 hover:text-white hover:bg-white/5"
               )}
             >
-              <Icon className="h-4 w-4" />
+              <Icon className={cn("h-5 w-5", isActive ? "text-emerald-400" : "text-white/40 group-hover:text-white/80")} />
               {link.label}
             </Link>
           );
         })}
       </div>
 
-      {/* Upgrade Button */}
-      <div className="p-4">
-        <button className="w-full py-2.5 px-4 rounded-md bg-gradient-to-r from-indigo-500 to-purple-600 hover:from-indigo-400 hover:to-purple-500 text-white text-sm font-medium transition-all shadow-lg shadow-purple-500/20">
-          Upgrade to Pro
-        </button>
+      {/* User Profile Section */}
+      <div className="p-4 border-t border-white/5">
+        <div className="flex items-center justify-between p-2 rounded-md hover:bg-white/5 transition-colors cursor-pointer group">
+          <div className="flex items-center gap-3">
+            <div className="h-9 w-9 rounded-full bg-gradient-to-br from-purple-500 to-indigo-600 border border-white/10 overflow-hidden flex items-center justify-center">
+              <span className="text-xs font-bold text-white">US</span>
+            </div>
+            <div>
+              <h3 className="text-sm font-semibold text-white">User</h3>
+              <p className="text-xs text-white/50">Pro Plan</p>
+            </div>
+          </div>
+          <LogOut className="h-4 w-4 text-white/40 group-hover:text-white/80" />
+        </div>
       </div>
     </aside>
   );
