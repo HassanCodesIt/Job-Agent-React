@@ -39,9 +39,24 @@ export async function GET(request: NextRequest) {
       try {
         oauth2Client.setCredentials(tokens);
         const userInfoRes = await oauth2Client.request({ url: "https://www.googleapis.com/oauth2/v2/userinfo" });
-        const userEmail = (userInfoRes.data as any).email;
+        const userInfo = userInfoRes.data as any;
+        const userEmail = userInfo.email;
+        const userName = userInfo.name;
+        
+        const updates: any = {};
         if (userEmail) {
-           store.setUser({ gmailAddress: userEmail });
+           updates.gmailAddress = userEmail;
+           
+           // If the primary profile email isn't set (e.g. logging in via Google directly), set it
+           const currentUser = store.getUser();
+           if (!currentUser || !currentUser.email) {
+             updates.email = userEmail;
+             updates.fullName = userName || "User";
+           }
+        }
+        
+        if (Object.keys(updates).length > 0) {
+           store.setUser(updates);
         }
       } catch (e) {
         console.error("Failed to fetch user email:", e);
