@@ -12,7 +12,8 @@ import {
   AlertCircle,
   FileText,
   Save,
-  Trash2
+  Trash2,
+  Check
 } from "lucide-react";
 
 interface JobApplication {
@@ -30,6 +31,14 @@ interface Draft {
   body: string;
 }
 
+const SEND_STEPS = [
+  "Save Draft",
+  "Prepare Data",
+  "Connect Server",
+  "Send Email",
+  "Complete"
+];
+
 export default function ApplyPage() {
   const [jobText, setJobText] = useState("");
   const [oneTimeInstructions, setOneTimeInstructions] = useState("");
@@ -43,6 +52,11 @@ export default function ApplyPage() {
   const [savingId, setSavingId] = useState<number | null>(null);
   const [message, setMessage] = useState<{ text: string; type: "success" | "error" } | null>(null);
   const [showSuccessModal, setShowSuccessModal] = useState(false);
+  
+  // Progress Stepper State
+  const [isSending, setIsSending] = useState(false);
+  const [sendingStep, setSendingStep] = useState(0);
+
   const router = useRouter();
 
   useEffect(() => {
@@ -159,10 +173,21 @@ export default function ApplyPage() {
   async function handleSendNow() {
     if (!currentDraft || !currentApp) return;
     
+    setIsSending(true);
+    setSendingStep(1); // 1. Save Draft
+    
     // Auto-save first
     await handleSaveDraft();
+    
+    setSendingStep(2); // 2. Prepare Data
+    await new Promise(r => setTimeout(r, 600));
 
+    setSendingStep(3); // 3. Connect Server
+    await new Promise(r => setTimeout(r, 600));
+
+    setSendingStep(4); // 4. Send Email
     setSendingId(currentApp.id);
+    
     try {
       const response = await fetch(`/api/applications/${currentApp.id}/submit`, {
         method: "POST",
@@ -171,13 +196,19 @@ export default function ApplyPage() {
       const data = await response.json();
 
       if (response.ok) {
+        setSendingStep(5); // 5. Complete
+        await new Promise(r => setTimeout(r, 800)); // Show completion step briefly
+        
+        setIsSending(false);
         setShowSuccessModal(true);
         setCurrentApp(null);
         setCurrentDraft(null);
       } else {
+        setIsSending(false);
         showMessage(data.error || "Failed to send email.", "error");
       }
     } catch (err) {
+      setIsSending(false);
       showMessage("Error sending email.", "error");
     } finally {
       setSendingId(null);
@@ -348,10 +379,10 @@ export default function ApplyPage() {
 
                   <button
                     onClick={handleSendNow}
-                    disabled={savingId !== null || sendingId !== null}
+                    disabled={savingId !== null || sendingId !== null || isSending}
                     className="flex items-center gap-2 rounded-full bg-teal-500 hover:bg-teal-400 px-8 py-2.5 text-sm font-bold text-black transition-all shadow-lg shadow-teal-500/20 disabled:opacity-50 cursor-pointer"
                   >
-                    {sendingId !== null ? <Loader2 className="h-4 w-4 animate-spin" /> : <Send className="h-4 w-4" />}
+                    {(sendingId !== null || isSending) ? <Loader2 className="h-4 w-4 animate-spin" /> : <Send className="h-4 w-4" />}
                     <span>Send Application</span>
                   </button>
                 </div>
@@ -363,9 +394,49 @@ export default function ApplyPage() {
 
       </div>
 
+      {/* Sending Progress Modal */}
+      {isSending && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/80 backdrop-blur-sm p-4 animate-in fade-in duration-300">
+          <div className="bg-card border border-card-border rounded-2xl p-10 max-w-3xl w-full shadow-2xl flex flex-col items-center">
+            <h3 className="text-2xl font-bold text-white mb-12">Submitting Application</h3>
+            
+            <div className="w-full flex justify-between relative px-4">
+              {/* Background line */}
+              <div className="absolute top-6 left-[10%] right-[10%] h-[2px] bg-zinc-800 -z-10" />
+              {/* Active line */}
+              <div 
+                className="absolute top-6 left-[10%] h-[2px] bg-teal-500 transition-all duration-500 ease-in-out -z-10" 
+                style={{ width: `${((sendingStep - 1) / (SEND_STEPS.length - 1)) * 80}%` }}
+              />
+              
+              {SEND_STEPS.map((step, idx) => {
+                const stepNumber = idx + 1;
+                const isActive = sendingStep === stepNumber;
+                const isPast = sendingStep > stepNumber;
+                
+                return (
+                  <div key={step} className="flex flex-col items-center gap-4 relative z-10 w-24">
+                    <div className={`
+                      w-12 h-12 rounded-full flex items-center justify-center text-base font-bold border-2 transition-all duration-500
+                      ${isActive ? 'border-teal-400 bg-teal-500/20 text-teal-400 scale-110 shadow-[0_0_20px_rgba(20,184,166,0.3)]' : 
+                        isPast ? 'border-teal-500 bg-teal-500 text-black' : 'border-zinc-800 bg-card text-zinc-600'}
+                    `}>
+                      {isPast ? <Check className="w-6 h-6" /> : (isActive ? <Loader2 className="w-5 h-5 animate-spin" /> : stepNumber)}
+                    </div>
+                    <span className={`text-sm font-medium text-center transition-colors duration-300 ${isActive ? 'text-teal-400' : isPast ? 'text-zinc-300' : 'text-zinc-600'}`}>
+                      {step}
+                    </span>
+                  </div>
+                );
+              })}
+            </div>
+          </div>
+        </div>
+      )}
+
       {/* Success Modal */}
       {showSuccessModal && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 backdrop-blur-sm p-4">
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/80 backdrop-blur-sm p-4">
           <div className="bg-card border border-card-border rounded-2xl p-8 max-w-md w-full shadow-2xl flex flex-col items-center text-center animate-in zoom-in-95 duration-300">
             <div className="h-16 w-16 bg-teal-500/10 text-teal-400 rounded-full flex items-center justify-center mb-6">
               <CheckCircle className="h-8 w-8" />
@@ -386,3 +457,4 @@ export default function ApplyPage() {
     </div>
   );
 }
+
