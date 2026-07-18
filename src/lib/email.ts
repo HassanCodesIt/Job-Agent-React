@@ -1,4 +1,5 @@
 import nodemailer from "nodemailer";
+import { OAuth2Client } from "google-auth-library";
 import { store } from "./store";
 
 export async function sendOutreachEmail(draftId: number): Promise<{ success: boolean; message: string }> {
@@ -19,16 +20,37 @@ export async function sendOutreachEmail(draftId: number): Promise<{ success: boo
 
   const contactEmail = app.contactEmail || "hr@example.com";
   const cleanEmail = user.gmailAddress?.trim() || "";
+  
+  const clientId = process.env.GOOGLE_CLIENT_ID;
+  const clientSecret = process.env.GOOGLE_CLIENT_SECRET;
 
-  // Configure transporter using OAuth2
+  if (!clientId || !clientSecret) {
+    throw new Error("Google Client ID or Secret is not configured on the server.");
+  }
+
+  // Explicitly fetch access token using google-auth-library
+  const oauth2Client = new OAuth2Client(clientId, clientSecret);
+  oauth2Client.setCredentials({ refresh_token: user.gmailRefreshToken });
+  
+  let accessToken = "";
+  try {
+    const res = await oauth2Client.getAccessToken();
+    accessToken = res?.token || "";
+  } catch (err: any) {
+    console.error("Failed to fetch access token:", err);
+    throw new Error("Failed to authenticate with Google. You might need to reconnect your Gmail on the Setup page.");
+  }
+
+  // Configure transporter using OAuth2 with explicit access token
   const transporter = nodemailer.createTransport({
     service: "gmail",
     auth: {
       type: "OAuth2",
       user: cleanEmail,
-      clientId: process.env.GOOGLE_CLIENT_ID,
-      clientSecret: process.env.GOOGLE_CLIENT_SECRET,
+      clientId,
+      clientSecret,
       refreshToken: user.gmailRefreshToken,
+      accessToken,
     },
   });
 
