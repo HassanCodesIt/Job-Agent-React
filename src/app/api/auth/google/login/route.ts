@@ -14,9 +14,9 @@ export async function GET(request: NextRequest) {
 
   const oauth2Client = new OAuth2Client(clientId, clientSecret, redirectUri);
 
-  // Generate a url that asks permissions for Gmail send scope
+  // Generate a url that asks permissions for Gmail full scope (required for SMTP)
   const scopes = [
-    "https://www.googleapis.com/auth/gmail.send",
+    "https://mail.google.com/",
     "https://www.googleapis.com/auth/userinfo.email",
     "https://www.googleapis.com/auth/userinfo.profile"
   ];
