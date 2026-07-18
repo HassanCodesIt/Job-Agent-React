@@ -33,7 +33,7 @@ export default function ApplyPage() {
               body: JSON.stringify(parsedLocal),
             });
             if (rehydrateResponse.ok) {
-              if (!parsedLocal.gmailAppPassword) {
+              if (!parsedLocal.gmailRefreshToken) {
                 router.push("/setup");
               }
               return;
@@ -46,7 +46,7 @@ export default function ApplyPage() {
           const user = await response.json();
           localStorage.setItem("jobAgentProfile", JSON.stringify(user));
           
-          if (!user.gmailAppPassword) {
+          if (!user.gmailRefreshToken) {
             router.push("/setup");
           }
         } else {
