@@ -3,13 +3,13 @@ import { store } from "@/lib/store";
 
 export async function POST(request: NextRequest) {
   try {
-    const { jobText, oneTimeInstructions } = await request.json();
+    const { jobText, oneTimeInstructions, userProfile } = await request.json();
 
     if (!jobText || !jobText.trim()) {
       return NextResponse.json({ error: "Job description text is required" }, { status: 400 });
     }
 
-    const user = store.getUser() || {
+    const user = userProfile || store.getUser() || {
       fullName: "Applicant",
       email: "applicant@example.com",
       title: "Candidate",
@@ -24,6 +24,7 @@ export async function POST(request: NextRequest) {
       company: "Unknown Company",
       role: "Unknown Role",
       contactEmail: "hr@example.com",
+      mobileNumber: "",
       subject: "Application for Job Opportunity",
       emailBody: `Hello Hiring Team,\n\nI am excited to express my interest in your job listing. Based on my background as a ${user.title || 'professional'}, I believe I would be a great fit.\n\nBest regards,\n${user.fullName}`
     };
@@ -43,8 +44,9 @@ We have the following candidate profile details:
 Analyze the provided job description and:
 1. Extract the "company" name (default: "Unknown Company").
 2. Extract the job "role" or title (default: "Unknown Role").
-3. Extract the "contactEmail" or recruiter email (default: "hr@example.com").
-4. Write a tailored, persuasive email outreach draft from the candidate to the hiring team.
+4. Extract the "contactEmail" or recruiter email (default: "hr@example.com").
+5. Extract the "mobileNumber" if mentioned in the job description (default: "").
+6. Write a tailored, persuasive email outreach draft from the candidate to the hiring team.
 ${oneTimeInstructions ? `Incorporate these specific instructions: "${oneTimeInstructions}"` : ""}
 
 CRITICAL FORMATTING RULES FOR THE EMAIL BODY:
@@ -63,6 +65,7 @@ You MUST return strictly a JSON object with these exact keys:
 - company (string)
 - role (string)
 - contactEmail (string)
+- mobileNumber (string)
 - subject (string)
 - emailBody (string)
 
@@ -92,6 +95,7 @@ Do not include any markdown formatting, extra conversational filler, or wrap the
           if (parsed.company) parsedResult.company = parsed.company;
           if (parsed.role) parsedResult.role = parsed.role;
           if (parsed.contactEmail) parsedResult.contactEmail = parsed.contactEmail;
+          if (parsed.mobileNumber) parsedResult.mobileNumber = parsed.mobileNumber;
           if (parsed.subject) parsedResult.subject = parsed.subject;
           if (parsed.emailBody) parsedResult.emailBody = parsed.emailBody;
         }
@@ -113,24 +117,10 @@ Do not include any markdown formatting, extra conversational filler, or wrap the
       }
     }
 
-    // Save the application and customize the draft in store
-    const createdApp = store.createApplication({
-      company: parsedResult.company,
-      role: parsedResult.role,
-      contactEmail: parsedResult.contactEmail,
-      source: "text-pasted"
-    });
-
-    const draft = store.getDraftByApplication(createdApp.id);
-    if (draft) {
-      draft.subject = parsedResult.subject;
-      draft.body = parsedResult.emailBody;
-    }
-
+    // Return the raw parsed data to the frontend so it can be saved in Supabase
     return NextResponse.json({
-      application: createdApp,
-      draft: draft
-    }, { status: 201 });
+      parsedResult
+    }, { status: 200 });
 
   } catch (error) {
     console.error("Parse job API error:", error);

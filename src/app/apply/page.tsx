@@ -13,6 +13,7 @@ import {
 } from "lucide-react";
 import { clsx, type ClassValue } from "clsx";
 import { twMerge } from "tailwind-merge";
+import { supabase } from "@/lib/supabase";
 
 function cn(...inputs: ClassValue[]) {
   return twMerge(clsx(inputs));
@@ -81,19 +82,84 @@ export default function ApplyPage() {
     setLoading(true);
 
     try {
+      const localData = localStorage.getItem("jobAgentProfile");
+      const userProfile = localData ? JSON.parse(localData) : null;
+
       const response = await fetch("/api/applications/parse-job", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ jobText, oneTimeInstructions }),
+        body: JSON.stringify({ jobText, oneTimeInstructions, userProfile }),
       });
 
       const data = await response.json();
 
       if (response.ok) {
+        const { data: { session } } = await supabase.auth.getSession();
+        
+        if (!session) {
+          showMessage("You must be logged in to save an application.", "error");
+          setLoading(false);
+          return;
+        }
+
+        const parsed = data.parsedResult;
+        
+        // Insert into Supabase
+        const { data: appData, error: appError } = await supabase.from('applications').insert({
+          user_id: session.user.id,
+          company: parsed.company,
+          role: parsed.role,
+          contact_email: parsed.contactEmail,
+          mobile_number: parsed.mobileNumber,
+          job_description: jobText,
+          source: 'text-pasted',
+          status: 'drafted'
+        }).select().single();
+
+        if (appError) {
+          console.error("Supabase app insert error:", appError);
+          showMessage("Failed to save application to database.", "error");
+          setLoading(false);
+          return;
+        }
+
+        const { data: draftData, error: draftError } = await supabase.from('drafts').insert({
+          application_id: appData.id,
+          user_id: session.user.id,
+          subject: parsed.subject,
+          body: parsed.emailBody
+        }).select().single();
+
+        if (draftError) {
+          console.error("Supabase draft insert error:", draftError);
+          showMessage("Failed to save draft to database.", "error");
+          setLoading(false);
+          return;
+        }
+
+        const mappedApp = {
+          id: appData.id,
+          company: appData.company,
+          role: appData.role,
+          source: appData.source,
+          contactEmail: appData.contact_email,
+          mobileNumber: appData.mobile_number,
+          jobDescription: appData.job_description,
+          status: appData.status,
+          createdAt: appData.created_at,
+        };
+
+        const mappedDraft = {
+          id: draftData.id,
+          applicationId: draftData.application_id,
+          subject: draftData.subject,
+          body: draftData.body
+        };
+
         // Save to session storage and navigate to draft page
         sessionStorage.setItem("jobAgentDraftData", JSON.stringify({
-          application: data.application,
-          draft: data.draft
+          application: mappedApp,
+          draft: mappedDraft
         }));
         router.push("/apply/draft");
       } else {

@@ -2,38 +2,52 @@
 
 import { useState, useEffect } from "react";
 import { useRouter } from "next/navigation";
-import { Sparkles, Loader2, ArrowRight, User, Mail } from "lucide-react";
+import { Sparkles, Loader2, ArrowRight, User, Mail, Lock } from "lucide-react";
+import { supabase } from "@/lib/supabase";
 
 export default function LoginPage() {
   const [name, setName] = useState("");
   const [email, setEmail] = useState("");
+  const [password, setPassword] = useState("");
   const [loading, setLoading] = useState(false);
   const [isLogin, setIsLogin] = useState(false); // Toggle between Login and Sign Up text
+  const [errorMsg, setErrorMsg] = useState<string | null>(null);
   const router = useRouter();
-
-  // Persistent Authentication Check removed so users can force a re-login by visiting /login
 
   async function handleAuth(e: React.FormEvent) {
     e.preventDefault();
-    if (!name || !email) return;
+    if (!email || !password || (!isLogin && !name)) return;
 
     setLoading(true);
+    setErrorMsg(null);
     try {
-      const response = await fetch("/api/user", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ fullName: name, email: email })
-      });
-      
-      if (response.ok) {
-        // Save to localStorage for auto-rehydration
-        localStorage.setItem("jobAgentProfile", JSON.stringify({ fullName: name, email: email }));
+      if (isLogin) {
+        const { error } = await supabase.auth.signInWithPassword({
+          email,
+          password
+        });
+        if (error) throw error;
         
-        // Redirect to setup since this is a new "mock" session
+        // Save minimal local profile
+        localStorage.setItem("jobAgentProfile", JSON.stringify({ email }));
+        router.push("/setup");
+      } else {
+        const { error } = await supabase.auth.signUp({
+          email,
+          password,
+          options: { data: { full_name: name } }
+        });
+        if (error) throw error;
+        
+        // Save minimal local profile
+        localStorage.setItem("jobAgentProfile", JSON.stringify({ fullName: name, email }));
+        // If email confirmation is off, this logs them in. Redirect to setup.
         router.push("/setup");
       }
-    } catch (err) {
+    } catch (err: any) {
       console.error("Auth failed:", err);
+      setErrorMsg(err.message || "Failed to authenticate");
+    } finally {
       setLoading(false);
     }
   }
@@ -65,24 +79,31 @@ export default function LoginPage() {
         </div>
 
         <div className="rounded-2xl border border-white/10 bg-white/[0.02] backdrop-blur-xl p-8 shadow-2xl">
+          {errorMsg && (
+            <div className="mb-4 p-3 rounded bg-red-500/10 border border-red-500/50 text-red-500 text-sm text-center">
+              {errorMsg}
+            </div>
+          )}
           <form onSubmit={handleAuth} className="space-y-5">
             
-            <div className="space-y-1.5">
-              <label className="text-xs font-semibold text-zinc-400 uppercase tracking-wider ml-1">
-                Full Name
-              </label>
-              <div className="relative group">
-                <User className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-zinc-500 group-focus-within:text-purple-400 transition-colors" />
-                <input
-                  type="text"
-                  required
-                  placeholder="Jane Doe"
-                  value={name}
-                  onChange={(e) => setName(e.target.value)}
-                  className="w-full rounded-lg border border-white/10 bg-white/5 pl-10 pr-4 py-3 text-sm text-white placeholder:text-zinc-600 focus:border-purple-500/50 focus:outline-none focus:ring-1 focus:ring-purple-500/50 transition-all"
-                />
+            {!isLogin && (
+              <div className="space-y-1.5">
+                <label className="text-xs font-semibold text-zinc-400 uppercase tracking-wider ml-1">
+                  Full Name
+                </label>
+                <div className="relative group">
+                  <User className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-zinc-500 group-focus-within:text-purple-400 transition-colors" />
+                  <input
+                    type="text"
+                    required={!isLogin}
+                    placeholder="Jane Doe"
+                    value={name}
+                    onChange={(e) => setName(e.target.value)}
+                    className="w-full rounded-lg border border-white/10 bg-white/5 pl-10 pr-4 py-3 text-sm text-white placeholder:text-zinc-600 focus:border-purple-500/50 focus:outline-none focus:ring-1 focus:ring-purple-500/50 transition-all"
+                  />
+                </div>
               </div>
-            </div>
+            )}
 
             <div className="space-y-1.5">
               <label className="text-xs font-semibold text-zinc-400 uppercase tracking-wider ml-1">
@@ -101,9 +122,26 @@ export default function LoginPage() {
               </div>
             </div>
 
+            <div className="space-y-1.5">
+              <label className="text-xs font-semibold text-zinc-400 uppercase tracking-wider ml-1">
+                Password
+              </label>
+              <div className="relative group">
+                <Lock className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-zinc-500 group-focus-within:text-purple-400 transition-colors" />
+                <input
+                  type="password"
+                  required
+                  placeholder="••••••••"
+                  value={password}
+                  onChange={(e) => setPassword(e.target.value)}
+                  className="w-full rounded-lg border border-white/10 bg-white/5 pl-10 pr-4 py-3 text-sm text-white placeholder:text-zinc-600 focus:border-purple-500/50 focus:outline-none focus:ring-1 focus:ring-purple-500/50 transition-all"
+                />
+              </div>
+            </div>
+
             <button
               type="submit"
-              disabled={loading || !name || !email}
+              disabled={loading || !email || !password || (!isLogin && !name)}
               className="w-full flex items-center justify-center gap-2 rounded-lg bg-gradient-to-r from-blue-600 to-purple-600 hover:from-blue-500 hover:to-purple-500 py-3 text-sm font-bold text-white transition-all shadow-lg shadow-purple-500/25 disabled:opacity-50 mt-4 cursor-pointer"
             >
               {loading ? (

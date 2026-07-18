@@ -13,10 +13,12 @@ import {
   FileText,
   Mail,
   Calendar,
-  ExternalLink
+  ExternalLink,
+  Phone
 } from "lucide-react";
 import { clsx, type ClassValue } from "clsx";
 import { twMerge } from "tailwind-merge";
+import { supabase } from "@/lib/supabase";
 
 function cn(...inputs: ClassValue[]) {
   return twMerge(clsx(inputs));
@@ -74,11 +76,29 @@ export default function DashboardPage() {
 
   async function fetchData() {
     try {
-      const response = await fetch("/api/applications");
-      if (response.ok) {
-        const data = await response.json();
-        setApplications(data);
-      }
+      const { data: { session } } = await supabase.auth.getSession();
+      if (!session) return;
+
+      const { data, error } = await supabase
+        .from('applications')
+        .select('*')
+        .eq('user_id', session.user.id)
+        .order('created_at', { ascending: false });
+
+      if (error) throw error;
+
+      const mapped = (data || []).map((app: any) => ({
+        id: app.id,
+        company: app.company,
+        role: app.role,
+        source: app.source,
+        contactEmail: app.contact_email,
+        mobileNumber: app.mobile_number,
+        jobDescription: app.job_description,
+        status: app.status,
+        createdAt: app.created_at,
+      }));
+      setApplications(mapped as JobApplication[]);
     } catch (err) {
       console.error("Failed to fetch applications:", err);
     } finally {
@@ -356,8 +376,29 @@ export default function DashboardPage() {
                     <p className="text-sm font-medium text-white">{new Date(selectedApp.createdAt).toLocaleDateString()} at {new Date(selectedApp.createdAt).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit'})}</p>
                   </div>
                 </div>
+
+                {selectedApp.mobileNumber && (
+                  <div className="flex items-start gap-4">
+                    <div className="w-10 h-10 rounded-xl bg-white/5 border border-white/10 flex items-center justify-center shrink-0 text-white/60">
+                      <Phone className="w-5 h-5" />
+                    </div>
+                    <div>
+                      <p className="text-xs font-bold text-white/40">Mobile Number</p>
+                      <p className="text-sm font-medium text-white">{selectedApp.mobileNumber}</p>
+                    </div>
+                  </div>
+                )}
               </div>
             </div>
+
+            {selectedApp.jobDescription && (
+              <div>
+                <h3 className="text-xs font-bold text-white/40 uppercase tracking-wider mb-4">Job Description</h3>
+                <div className="p-4 rounded-xl bg-white/5 border border-white/10 text-sm text-white/80 whitespace-pre-wrap leading-relaxed">
+                  {selectedApp.jobDescription}
+                </div>
+              </div>
+            )}
 
           </div>
 

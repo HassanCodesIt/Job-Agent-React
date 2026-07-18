@@ -29,12 +29,14 @@ export interface Draft {
 }
 
 export interface JobApplication {
-  id: number;
+  id: string | number;
   company: string;
   role: string;
   source: string;
   contactEmail: string;
-  status: ApplicationStatus;
+  mobileNumber?: string;
+  jobDescription?: string;
+  status: ApplicationStatus | string;
   createdAt: string;
 }
 
