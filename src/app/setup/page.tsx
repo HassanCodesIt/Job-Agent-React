@@ -36,7 +36,7 @@ export default function SetupPage() {
     summary: "",
     projects: "",
     gmailAddress: "",
-    gmailAppPassword: "",
+    gmailRefreshToken: "",
     resumeFilename: "",
     resumeBase64: ""
   });
@@ -82,7 +82,7 @@ export default function SetupPage() {
             summary: data.summary || "",
             projects: data.projects || "",
             gmailAddress: data.gmailAddress || "",
-            gmailAppPassword: data.gmailAppPassword || "",
+            gmailRefreshToken: data.gmailRefreshToken || "",
             resumeFilename: data.resumeFilename || "",
             resumeBase64: data.resumeBase64 || ""
           });
