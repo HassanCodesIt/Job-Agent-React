@@ -11,13 +11,7 @@ export default function LoginPage() {
   const [isLogin, setIsLogin] = useState(false); // Toggle between Login and Sign Up text
   const router = useRouter();
 
-  // Persistent Authentication Check
-  useEffect(() => {
-    const localData = localStorage.getItem("jobAgentProfile");
-    if (localData) {
-      router.push("/");
-    }
-  }, [router]);
+  // Persistent Authentication Check removed so users can force a re-login by visiting /login
 
   async function handleAuth(e: React.FormEvent) {
     e.preventDefault();

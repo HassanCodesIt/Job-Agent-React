@@ -51,7 +51,7 @@ export default function DashboardPage() {
           });
           if (rehydrateResponse.ok) {
             // Rehydration successful, check if they need setup
-            if (!parsedLocal.gmailAppPassword) {
+            if (!parsedLocal.gmailRefreshToken) {
               router.push("/setup");
             }
             return;
@@ -66,7 +66,7 @@ export default function DashboardPage() {
         // Keep localStorage fresh
         localStorage.setItem("jobAgentProfile", JSON.stringify(user));
         
-        if (!user.gmailAppPassword) {
+        if (!user.gmailRefreshToken) {
           router.push("/setup");
         }
       } else {
