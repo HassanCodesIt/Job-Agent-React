@@ -5,58 +5,18 @@ import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { 
   Sparkles, 
-  Send, 
   Loader2, 
   ChevronLeft, 
   CheckCircle, 
-  AlertCircle,
-  FileText,
-  Save,
-  Trash2,
-  Check
+  AlertCircle
 } from "lucide-react";
-
-interface JobApplication {
-  id: number;
-  company: string;
-  role: string;
-  status: string;
-  createdAt: string;
-}
-
-interface Draft {
-  id: number;
-  applicationId: number;
-  subject: string;
-  body: string;
-}
-
-const SEND_STEPS = [
-  "Save Draft",
-  "Prepare Data",
-  "Connect Server",
-  "Send Email",
-  "Complete"
-];
 
 export default function ApplyPage() {
   const [jobText, setJobText] = useState("");
   const [oneTimeInstructions, setOneTimeInstructions] = useState("");
   const [loading, setLoading] = useState(false);
-  
-  // Current draft being edited/viewed
-  const [currentApp, setCurrentApp] = useState<JobApplication | null>(null);
-  const [currentDraft, setCurrentDraft] = useState<Draft | null>(null);
-  
-  const [sendingId, setSendingId] = useState<number | null>(null);
-  const [savingId, setSavingId] = useState<number | null>(null);
   const [message, setMessage] = useState<{ text: string; type: "success" | "error" } | null>(null);
-  const [showSuccessModal, setShowSuccessModal] = useState(false);
   
-  // Progress Stepper State
-  const [isSending, setIsSending] = useState(false);
-  const [sendingStep, setSendingStep] = useState(0);
-
   const router = useRouter();
 
   useEffect(() => {
@@ -64,31 +24,26 @@ export default function ApplyPage() {
       try {
         const response = await fetch("/api/user");
         if (response.status === 404) {
-          // Attempt auto-rehydration from localStorage
           const localData = localStorage.getItem("jobAgentProfile");
           if (localData) {
             const parsedLocal = JSON.parse(localData);
-            // Silently upload to server to rehydrate memory
             const rehydrateResponse = await fetch("/api/setup/save", {
               method: "POST",
               headers: { "Content-Type": "application/json" },
               body: JSON.stringify(parsedLocal),
             });
             if (rehydrateResponse.ok) {
-              // Rehydration successful, check if they need setup
               if (!parsedLocal.gmailAppPassword) {
                 router.push("/setup");
               }
               return;
             }
           }
-          
           router.push("/login");
           return;
         }
         if (response.ok) {
           const user = await response.json();
-          // Keep localStorage fresh
           localStorage.setItem("jobAgentProfile", JSON.stringify(user));
           
           if (!user.gmailAppPassword) {
@@ -117,8 +72,6 @@ export default function ApplyPage() {
     }
 
     setLoading(true);
-    setCurrentApp(null);
-    setCurrentDraft(null);
 
     try {
       const response = await fetch("/api/applications/parse-job", {
@@ -130,93 +83,24 @@ export default function ApplyPage() {
       const data = await response.json();
 
       if (response.ok) {
-        showMessage(`Successfully processed job for "${data.application.company}" and generated email draft!`);
-        setJobText("");
-        setOneTimeInstructions("");
-        
-        setCurrentApp(data.application);
-        setCurrentDraft(data.draft);
+        // Save to session storage and navigate to draft page
+        sessionStorage.setItem("jobAgentDraftData", JSON.stringify({
+          application: data.application,
+          draft: data.draft
+        }));
+        router.push("/apply/draft");
       } else {
         showMessage(data.error || "Failed to process job description.", "error");
+        setLoading(false);
       }
     } catch (err) {
       showMessage("Error connecting to server.", "error");
-    } finally {
       setLoading(false);
     }
   }
 
-  async function handleSaveDraft() {
-    if (!currentDraft) return;
-    setSavingId(currentDraft.id);
-    try {
-      const response = await fetch(`/api/drafts/${currentDraft.id}`, {
-        method: "PATCH",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          subject: currentDraft.subject,
-          body: currentDraft.body
-        })
-      });
-      if (response.ok) {
-        showMessage("Draft saved successfully!");
-      } else {
-        showMessage("Failed to save draft.", "error");
-      }
-    } catch (err) {
-      showMessage("Error saving draft.", "error");
-    } finally {
-      setSavingId(null);
-    }
-  }
-
-  async function handleSendNow() {
-    if (!currentDraft || !currentApp) return;
-    
-    setIsSending(true);
-    setSendingStep(1); // 1. Save Draft
-    
-    // Auto-save first
-    await handleSaveDraft();
-    
-    setSendingStep(2); // 2. Prepare Data
-    await new Promise(r => setTimeout(r, 600));
-
-    setSendingStep(3); // 3. Connect Server
-    await new Promise(r => setTimeout(r, 600));
-
-    setSendingStep(4); // 4. Send Email
-    setSendingId(currentApp.id);
-    
-    try {
-      const response = await fetch(`/api/applications/${currentApp.id}/submit`, {
-        method: "POST",
-      });
-
-      const data = await response.json();
-
-      if (response.ok) {
-        setSendingStep(5); // 5. Complete
-        await new Promise(r => setTimeout(r, 800)); // Show completion step briefly
-        
-        setIsSending(false);
-        setShowSuccessModal(true);
-        setCurrentApp(null);
-        setCurrentDraft(null);
-      } else {
-        setIsSending(false);
-        showMessage(data.error || "Failed to send email.", "error");
-      }
-    } catch (err) {
-      setIsSending(false);
-      showMessage("Error sending email.", "error");
-    } finally {
-      setSendingId(null);
-    }
-  }
-
   return (
-    <div className="space-y-8 animate-in fade-in slide-in-from-bottom-4 duration-500">
+    <div className="space-y-8 animate-in fade-in slide-in-from-bottom-4 duration-500 max-w-4xl mx-auto">
       
       {/* Navigation Header */}
       <header className="flex flex-col gap-2">
@@ -242,219 +126,59 @@ export default function ApplyPage() {
         </div>
       )}
 
-      <div className="grid lg:grid-cols-12 gap-8 items-start">
+      {/* Paste Form */}
+      <form onSubmit={handleProcessJob} className="rounded-xl border border-card-border bg-card p-8 shadow-sm space-y-6">
+        <div className="flex items-center gap-2 border-b border-card-border pb-4">
+          <Sparkles className="h-6 w-6 text-teal-400" />
+          <h2 className="text-2xl font-semibold text-white">Paste Job Details</h2>
+        </div>
         
-        {/* Left Side: Paste Form */}
-        <div className="lg:col-span-5 space-y-6">
-          <form onSubmit={handleProcessJob} className="rounded-xl border border-card-border bg-card p-6 shadow-sm space-y-6">
-            <div className="flex items-center gap-2 border-b border-card-border pb-4">
-              <Sparkles className="h-5 w-5 text-teal-400" />
-              <h2 className="text-xl font-semibold text-white">1. Paste Job Details</h2>
-            </div>
-            
-            <div className="space-y-2">
-              <label className="text-xs font-semibold text-zinc-400 uppercase tracking-wider block">
-                Raw Job Description
-              </label>
-              <textarea 
-                className="w-full rounded-md border border-white/10 bg-[#09090B] px-4 py-3 text-sm text-white placeholder:text-zinc-500 focus:border-primary/50 focus:outline-none focus:ring-1 focus:ring-primary/50 transition-all resize-none" 
-                rows={12} 
-                placeholder="Paste job details, requirements, and contact info here..."
-                value={jobText}
-                onChange={(e) => setJobText(e.target.value)}
-                disabled={loading}
-              />
-            </div>
-
-            <div className="space-y-2">
-              <label className="text-xs font-semibold text-zinc-400 uppercase tracking-wider block">
-                Extra Instructions (Optional)
-              </label>
-              <textarea 
-                className="w-full rounded-md border border-white/10 bg-[#09090B] px-4 py-2 text-sm text-white placeholder:text-zinc-500 focus:border-primary/50 focus:outline-none focus:ring-1 focus:ring-primary/50 transition-all resize-none" 
-                rows={2} 
-                placeholder="e.g. mention my Python skills, make it short"
-                value={oneTimeInstructions}
-                onChange={(e) => setOneTimeInstructions(e.target.value)}
-                disabled={loading}
-              />
-            </div>
-
-            <button 
-              type="submit"
-              disabled={loading}
-              className="w-full flex items-center justify-center gap-2 rounded-full bg-gradient-to-r from-blue-600 to-purple-600 hover:from-blue-500 hover:to-purple-500 px-6 py-3.5 text-sm font-semibold text-white transition-all shadow-lg shadow-purple-500/20 disabled:opacity-50 cursor-pointer"
-            >
-              {loading ? (
-                <>
-                  <Loader2 className="h-4 w-4 animate-spin" />
-                  <span>Processing...</span>
-                </>
-              ) : (
-                <>
-                  <Sparkles className="h-4 w-4 text-teal-300" />
-                  <span>Generate Draft</span>
-                </>
-              )}
-            </button>
-          </form>
+        <div className="space-y-2">
+          <label className="text-sm font-semibold text-zinc-400 uppercase tracking-wider block">
+            Raw Job Description
+          </label>
+          <textarea 
+            className="w-full rounded-md border border-white/10 bg-[#09090B] px-4 py-3 text-sm text-white placeholder:text-zinc-500 focus:border-primary/50 focus:outline-none focus:ring-1 focus:ring-primary/50 transition-all resize-none" 
+            rows={14} 
+            placeholder="Paste job details, requirements, and contact info here..."
+            value={jobText}
+            onChange={(e) => setJobText(e.target.value)}
+            disabled={loading}
+          />
         </div>
 
-        {/* Right Side: Draft Editor */}
-        <div className="lg:col-span-7">
-          {!currentDraft || !currentApp ? (
-            <div className="rounded-xl border border-card-border bg-card p-12 text-center space-y-4 shadow-sm h-full flex flex-col justify-center items-center">
-              <div className="h-12 w-12 rounded-full bg-white/5 flex items-center justify-center text-zinc-500">
-                <FileText className="h-6 w-6" />
-              </div>
-              <div>
-                <p className="text-base font-semibold text-white">No draft generated yet</p>
-                <p className="text-sm text-zinc-500 max-w-sm mt-1">
-                  Paste a job description on the left and click "Generate Draft" to write a personalized outreach email.
-                </p>
-              </div>
-            </div>
+        <div className="space-y-2">
+          <label className="text-sm font-semibold text-zinc-400 uppercase tracking-wider block">
+            Extra Instructions (Optional)
+          </label>
+          <textarea 
+            className="w-full rounded-md border border-white/10 bg-[#09090B] px-4 py-2 text-sm text-white placeholder:text-zinc-500 focus:border-primary/50 focus:outline-none focus:ring-1 focus:ring-primary/50 transition-all resize-none" 
+            rows={3} 
+            placeholder="e.g. mention my Python skills, make it short"
+            value={oneTimeInstructions}
+            onChange={(e) => setOneTimeInstructions(e.target.value)}
+            disabled={loading}
+          />
+        </div>
+
+        <button 
+          type="submit"
+          disabled={loading}
+          className="w-full flex items-center justify-center gap-2 rounded-full bg-gradient-to-r from-blue-600 to-purple-600 hover:from-blue-500 hover:to-purple-500 px-6 py-4 text-base font-semibold text-white transition-all shadow-lg shadow-purple-500/20 disabled:opacity-50 cursor-pointer mt-4"
+        >
+          {loading ? (
+            <>
+              <Loader2 className="h-5 w-5 animate-spin" />
+              <span>Analyzing Job Description...</span>
+            </>
           ) : (
-            <div className="rounded-xl border border-card-border bg-card shadow-sm flex flex-col animate-in fade-in zoom-in-95 duration-300">
-              <div className="p-6 border-b border-card-border bg-white/[0.02]">
-                <div className="flex items-center justify-between mb-4">
-                  <h2 className="text-xl font-semibold text-white">2. Review & Send Draft</h2>
-                  <span className="text-xs font-medium bg-blue-500/10 text-blue-400 border border-blue-500/20 px-2.5 py-1 rounded-full">
-                    Drafted
-                  </span>
-                </div>
-                <div className="space-y-1">
-                  <p className="text-sm text-white font-medium">To: {currentApp.company} Hiring Team</p>
-                  <p className="text-xs text-zinc-400">Role: {currentApp.role}</p>
-                </div>
-              </div>
-
-              <div className="p-6 space-y-4">
-                <div className="space-y-1.5">
-                  <label className="text-xs font-semibold text-zinc-400 uppercase tracking-wider block">
-                    Subject Line
-                  </label>
-                  <input
-                    type="text"
-                    value={currentDraft.subject}
-                    onChange={(e) => setCurrentDraft({ ...currentDraft, subject: e.target.value })}
-                    className="w-full rounded-md border border-white/10 bg-[#09090B] px-4 py-2.5 text-sm font-medium text-white placeholder:text-zinc-500 focus:border-primary/50 focus:outline-none focus:ring-1 focus:ring-primary/50 transition-all"
-                  />
-                </div>
-
-                <div className="space-y-1.5">
-                  <label className="text-xs font-semibold text-zinc-400 uppercase tracking-wider block">
-                    Email Body
-                  </label>
-                  <textarea
-                    value={currentDraft.body}
-                    onChange={(e) => setCurrentDraft({ ...currentDraft, body: e.target.value })}
-                    className="w-full rounded-md border border-white/10 bg-[#09090B] px-4 py-3 text-sm text-white placeholder:text-zinc-500 focus:border-primary/50 focus:outline-none focus:ring-1 focus:ring-primary/50 transition-all resize-none"
-                    rows={12}
-                  />
-                </div>
-              </div>
-
-              <div className="p-6 border-t border-card-border bg-white/[0.02] flex items-center justify-between gap-4">
-                <button
-                  onClick={() => {
-                    setCurrentApp(null);
-                    setCurrentDraft(null);
-                  }}
-                  className="p-2.5 rounded-full bg-white/5 hover:bg-white/10 border border-white/10 text-zinc-400 hover:text-red-400 transition-all cursor-pointer"
-                  title="Discard Draft"
-                >
-                  <Trash2 className="h-5 w-5" />
-                </button>
-
-                <div className="flex gap-3 flex-1 justify-end">
-                  <button
-                    onClick={handleSaveDraft}
-                    disabled={savingId !== null || sendingId !== null}
-                    className="flex items-center gap-2 rounded-full border border-white/10 bg-white/5 hover:bg-white/10 px-6 py-2.5 text-sm font-medium text-white transition-all disabled:opacity-50 cursor-pointer"
-                  >
-                    {savingId !== null ? <Loader2 className="h-4 w-4 animate-spin" /> : <Save className="h-4 w-4" />}
-                    <span>Save Edits</span>
-                  </button>
-
-                  <button
-                    onClick={handleSendNow}
-                    disabled={savingId !== null || sendingId !== null || isSending}
-                    className="flex items-center gap-2 rounded-full bg-teal-500 hover:bg-teal-400 px-8 py-2.5 text-sm font-bold text-black transition-all shadow-lg shadow-teal-500/20 disabled:opacity-50 cursor-pointer"
-                  >
-                    {(sendingId !== null || isSending) ? <Loader2 className="h-4 w-4 animate-spin" /> : <Send className="h-4 w-4" />}
-                    <span>Send Application</span>
-                  </button>
-                </div>
-              </div>
-
-            </div>
+            <>
+              <Sparkles className="h-5 w-5 text-teal-300" />
+              <span>Generate Email Draft</span>
+            </>
           )}
-        </div>
-
-      </div>
-
-      {/* Sending Progress Modal */}
-      {isSending && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/80 backdrop-blur-sm p-4 animate-in fade-in duration-300">
-          <div className="bg-card border border-card-border rounded-2xl p-10 max-w-3xl w-full shadow-2xl flex flex-col items-center">
-            <h3 className="text-2xl font-bold text-white mb-12">Submitting Application</h3>
-            
-            <div className="w-full flex justify-between relative px-4">
-              {/* Background line */}
-              <div className="absolute top-6 left-[10%] right-[10%] h-[2px] bg-zinc-800 -z-10" />
-              {/* Active line */}
-              <div 
-                className="absolute top-6 left-[10%] h-[2px] bg-teal-500 transition-all duration-500 ease-in-out -z-10" 
-                style={{ width: `${((sendingStep - 1) / (SEND_STEPS.length - 1)) * 80}%` }}
-              />
-              
-              {SEND_STEPS.map((step, idx) => {
-                const stepNumber = idx + 1;
-                const isActive = sendingStep === stepNumber;
-                const isPast = sendingStep > stepNumber;
-                
-                return (
-                  <div key={step} className="flex flex-col items-center gap-4 relative z-10 w-24">
-                    <div className={`
-                      w-12 h-12 rounded-full flex items-center justify-center text-base font-bold border-2 transition-all duration-500
-                      ${isActive ? 'border-teal-400 bg-teal-500/20 text-teal-400 scale-110 shadow-[0_0_20px_rgba(20,184,166,0.3)]' : 
-                        isPast ? 'border-teal-500 bg-teal-500 text-black' : 'border-zinc-800 bg-card text-zinc-600'}
-                    `}>
-                      {isPast ? <Check className="w-6 h-6" /> : (isActive ? <Loader2 className="w-5 h-5 animate-spin" /> : stepNumber)}
-                    </div>
-                    <span className={`text-sm font-medium text-center transition-colors duration-300 ${isActive ? 'text-teal-400' : isPast ? 'text-zinc-300' : 'text-zinc-600'}`}>
-                      {step}
-                    </span>
-                  </div>
-                );
-              })}
-            </div>
-          </div>
-        </div>
-      )}
-
-      {/* Success Modal */}
-      {showSuccessModal && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/80 backdrop-blur-sm p-4">
-          <div className="bg-card border border-card-border rounded-2xl p-8 max-w-md w-full shadow-2xl flex flex-col items-center text-center animate-in zoom-in-95 duration-300">
-            <div className="h-16 w-16 bg-teal-500/10 text-teal-400 rounded-full flex items-center justify-center mb-6">
-              <CheckCircle className="h-8 w-8" />
-            </div>
-            <h3 className="text-2xl font-bold text-white mb-2">Application Sent!</h3>
-            <p className="text-zinc-400 mb-8">
-              Your email outreach has been successfully sent to the hiring team.
-            </p>
-            <button
-              onClick={() => setShowSuccessModal(false)}
-              className="w-full rounded-full bg-white/10 hover:bg-white/20 text-white font-semibold py-3 transition-colors cursor-pointer"
-            >
-              OK
-            </button>
-          </div>
-        </div>
-      )}
+        </button>
+      </form>
     </div>
   );
 }
-
